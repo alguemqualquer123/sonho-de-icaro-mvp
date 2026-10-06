@@ -1,0 +1,263 @@
+/* =========================================================
+   Landing page — Sonho de Ícaro (dark premium com glow)
+   Todo o CSS custom das seções vive aqui.
+   ========================================================= */
+
+:root {
+  --lp-bg: #070712;
+  --lp-bg-soft: #0a0a14;
+  --lp-purple: #7c5cff;
+  --lp-blue: #4f8cff;
+}
+
+/* ---------- Fundo com orbs de glow animados ---------- */
+.lp-orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(90px);
+  opacity: 0.35;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.lp-orb-purple {
+  background: radial-gradient(
+    circle at 30% 30%,
+    rgba(124, 92, 255, 0.9),
+    rgba(124, 92, 255, 0) 70%
+  );
+}
+
+.lp-orb-blue {
+  background: radial-gradient(
+    circle at 70% 60%,
+    rgba(79, 140, 255, 0.85),
+    rgba(79, 140, 255, 0) 70%
+  );
+}
+
+@keyframes lp-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(0, -28px, 0) scale(1.06);
+  }
+}
+
+.lp-float-slow {
+  animation: lp-float 14s ease-in-out infinite;
+}
+
+.lp-float-slower {
+  animation: lp-float 20s ease-in-out infinite reverse;
+}
+
+/* ---------- Texto com gradiente animado ---------- */
+@keyframes lp-gradient-pan {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.lp-text-gradient {
+  background: linear-gradient(
+    100deg,
+    #ffffff 0%,
+    var(--lp-purple) 35%,
+    var(--lp-blue) 60%,
+    #ffffff 100%
+  );
+  background-size: 220% 220%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: lp-gradient-pan 9s ease-in-out infinite;
+}
+
+/* ---------- Badge / pill com brilho na borda ---------- */
+@keyframes lp-border-shimmer {
+  0% {
+    background-position: -160% 0;
+  }
+  100% {
+    background-position: 260% 0;
+  }
+}
+
+.lp-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.lp-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    110deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.25) 50%,
+    transparent 60%
+  );
+  background-size: 220% 100%;
+  animation: lp-border-shimmer 4.5s linear infinite;
+  pointer-events: none;
+}
+
+/* ---------- Cards com glow no hover ---------- */
+.lp-card {
+  position: relative;
+  transition:
+    transform 0.35s ease,
+    border-color 0.35s ease,
+    box-shadow 0.35s ease,
+    background-color 0.35s ease;
+}
+
+.lp-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(124, 92, 255, 0.45);
+  box-shadow:
+    0 0 0 1px rgba(124, 92, 255, 0.12),
+    0 18px 50px -20px rgba(124, 92, 255, 0.45),
+    0 8px 32px -12px rgba(79, 140, 255, 0.28);
+}
+
+/* Halo de glow atrás de cards destaque */
+.lp-glow-behind::before {
+  content: "";
+  position: absolute;
+  inset: -40%;
+  z-index: -1;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(124, 92, 255, 0.22),
+    rgba(79, 140, 255, 0.08) 45%,
+    transparent 70%
+  );
+  filter: blur(30px);
+  pointer-events: none;
+}
+
+/* ---------- Entrada on-scroll (Reveal) ---------- */
+.lp-reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition:
+    opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.lp-reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ---------- Linhas do diagrama de rateio ---------- */
+@keyframes lp-dash-flow {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+
+.lp-flow-line {
+  stroke-dasharray: 6 6;
+  animation: lp-dash-flow 1.6s linear infinite;
+}
+
+/* ---------- Itens que pulsam suavemente (totais) ---------- */
+@keyframes lp-pulse-soft {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(124, 92, 255, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 32px 6px rgba(124, 92, 255, 0.22);
+  }
+}
+
+.lp-pulse {
+  animation: lp-pulse-soft 3.2s ease-in-out infinite;
+}
+
+/* ---------- Grade de fundo sutil ---------- */
+.lp-grid-bg {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 56px 56px;
+  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 40%, transparent 100%);
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 40%, transparent 100%);
+}
+
+/* ---------- FAQ (details/summary) ---------- */
+.lp-faq details {
+  transition: border-color 0.3s ease, background-color 0.3s ease;
+}
+
+.lp-faq details[open] {
+  border-color: rgba(124, 92, 255, 0.45);
+  background-color: rgba(124, 92, 255, 0.06);
+}
+
+.lp-faq summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.lp-faq summary::-webkit-details-marker {
+  display: none;
+}
+
+.lp-faq summary::marker {
+  content: "";
+}
+
+.lp-faq .lp-faq-chevron {
+  transition: transform 0.3s ease;
+}
+
+.lp-faq details[open] .lp-faq-chevron {
+  transform: rotate(45deg);
+}
+
+/* ---------- Âncoras com respiro sob o header fixo ---------- */
+.lp-section {
+  scroll-margin-top: 96px;
+}
+
+/* ---------- Movimento suave ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .lp-orb,
+  .lp-float-slow,
+  .lp-float-slower,
+  .lp-text-gradient,
+  .lp-shimmer::after,
+  .lp-flow-line,
+  .lp-pulse {
+    animation: none !important;
+  }
+  .lp-reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .lp-card:hover {
+    transform: none;
+  }
+  html:not(.lp-no-smooth) {
+    scroll-behavior: auto;
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+}
