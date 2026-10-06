@@ -9,10 +9,10 @@ import {
   Numero,
   Painel,
   Recado,
-  Selecao,
   Selo,
   Tabela,
 } from "@/components/ui";
+import { Selecao } from "@/components/selecao";
 import { exigirUsuario } from "@/lib/auth";
 import { PAPEIS, PERMISSOES, nomeDoPapel, pode, type Permissao } from "@/lib/rbac";
 import { listarUsuarios, resumoUsuarios, totalUsuarios } from "@/lib/usuarios";
@@ -43,8 +43,7 @@ export default async function UsuariosPage({
     );
   }
 
-  const linhas = listarUsuarios();
-  const resumo = resumoUsuarios();
+  const [linhas, resumo, totalContas] = await Promise.all([listarUsuarios(), resumoUsuarios(), totalUsuarios()]);
   const totalCompras = linhas.reduce((soma, l) => soma + l.compras, 0);
 
   const colunas: (string | ReactNode)[] = ["Nome", "E-mail", "Perfil", "Situação", "Compras registradas", "Gerenciar"];
@@ -111,7 +110,7 @@ export default async function UsuariosPage({
       <Recado searchParams={params} />
 
       <Grade colunas={4}>
-        <Numero rotulo="Contas no sistema" valor={String(totalUsuarios())} />
+        <Numero rotulo="Contas no sistema" valor={String(totalContas)} />
         <Numero rotulo="Ativos" valor={String(resumo.ativos)} nota={`${resumo.total - resumo.ativos} desativado(s)`} tom="bom" />
         <Numero rotulo="Compras registradas" valor={String(totalCompras)} nota="soma por responsável" />
         <Numero rotulo="Perfis possíveis" valor={String(PAPEIS.length)} nota="de comprador a auditor" />

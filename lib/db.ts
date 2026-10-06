@@ -1,30 +1,97 @@
-import Database from "better-sqlite3";
+import { AsyncLocalStorage } from "node:async_hooks";
 import fs from "node:fs";
 import path from "node:path";
+import { Pool, type QueryResultRow } from "pg";
+
+// Acesso a dados em Postgres (Supabase). A API esconde o driver: get/all/run
+// são síncronos de assinatura, mas retornam Promise; transações usam
+// AsyncLocalStorage para que toda consulta dentro do callback enxergue o mesmo
+// cliente, mesmo com requisições interleaving em serverless.
+//
+// A modelagem financeira continua em centavos inteiros (INTEGER). Nenhum
+// cálculo em ponto flutuante entra aqui.
+
+const contexto = new AsyncLocalStorage<import("pg").PoolClient>();
 
 export const DATA_DIR = process.env.DATA_DIR
   ? path.resolve(process.env.DATA_DIR)
   : path.join(process.cwd(), "data");
+// Comprovantes: fotos vão para o CDN do FiveManage (ver lib/fivemanage.ts);
+// PDF e o fallback sem chave ficam no filesystem local. Na Vercel o disco é
+// efêmero: o upload funciona durante a instância, mas o recomendado é manter
+// FIVEMANAGE_API_KEY configurado.
 export const UPLOADS_DIR = path.join(DATA_DIR, "uploads");
 
-const globalCache = globalThis as typeof globalThis & { __banco?: Database.Database };
+export type ResultadoRun = { changes: number; lastInsertRowid: number };
 
-function abrir(): Database.Database {
-  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-  const db = new Database(path.join(DATA_DIR, "app.db"));
-  db.pragma("journal_mode = WAL");
-  db.pragma("foreign_keys = ON");
-  return db;
+export type Banco = {
+  get<T extends QueryResultRow = Record<string, unknown>>(
+    sql: string,
+    params?: unknown[],
+  ): Promise<T | undefined>;
+  all<T extends QueryResultRow = Record<string, unknown>>(
+    sql: string,
+    params?: unknown[],
+  ): Promise<T[]>;
+  run(sql: string, params?: unknown[]): Promise<ResultadoRun>;
+  transaction<U>(funcao: () => Promise<U> | U): Promise<U>;
+};
+
+function limparValor(valor: string | undefined): string {
+  if (!valor) return "";
+  // .env.example traz valores entre aspas; remove aspas e espaços.
+  return valor.trim().replace(/^["']+|["']+$/g, "").trim();
 }
 
-export function banco(): Database.Database {
-  if (!globalCache.__banco) {
-    const db = abrir();
-    db.exec(ESQUEMA);
-    semear(db);
-    globalCache.__banco = db;
+const URL_BD =
+  limparValor(process.env.DATABASE_URL) ||
+  limparValor(process.env.SUPABASE_DB_URL) ||
+  limparValor(process.env.POSTGRES_URL_NON_POOLING) ||
+  limparValor(process.env.POSTGRES_URL) ||
+  limparValor(process.env.POSTGRES_PRISMA_URL) ||
+  "";
+// NOTA: SUPABASE_URL (https://...) de propósito NÃO entra aqui — não é
+// connection string Postgres e quebrava o pg quando .env.local era copiado
+// do .env.example.
+
+let pool: Pool | undefined;
+
+// O driver pg (pg-connection-string) trata `?sslmode=require` como
+// verify-full e SOBRESCREVE `ssl: { rejectUnauthorized: false }` — atrás de
+// proxy corporativo / cadeia self-signed isso dá
+// "SELF_SIGNED_CERT_IN_CHAIN" mesmo com rejectUnauthorized:false.
+// Por isso removemos `sslmode` da URL e forçamos o objeto ssl explícito.
+function normalizarConexao(url: string): string {
+  try {
+    const u = new URL(url);
+    u.searchParams.delete("sslmode");
+    // hints do Supabase/Prisma que o pg não entende; inofensivos mas poluentes
+    u.searchParams.delete("supa");
+    u.searchParams.delete("pgbouncer");
+    return u.toString();
+  } catch {
+    return url.split("?")[0];
   }
-  return globalCache.__banco;
+}
+
+function obterPool(): Pool {
+  if (!pool) {
+    if (!URL_BD) {
+      throw new Error(
+        "não há conexão com o banco: defina DATABASE_URL (ou POSTGRES_URL_NON_POOLING / POSTGRES_URL / SUPABASE_DB_URL) no .env.local — copie .env.example para .env.local e reinicie o `next dev`",
+      );
+    }
+    const precisaSSL =
+      URL_BD.includes("sslmode=require") || URL_BD.includes("supabase");
+    pool = new Pool({
+      connectionString: normalizarConexao(URL_BD),
+      max: Number(process.env.PG_MAX_CONNECTIONS ?? 10),
+      idleTimeoutMillis: 30_000,
+      connectionTimeoutMillis: 10_000,
+      ...(precisaSSL ? { ssl: { rejectUnauthorized: false } } : {}),
+    });
+  }
+  return pool;
 }
 
 export function agora(): string {
@@ -35,11 +102,9 @@ export function competenciaDaData(data: string): string {
   return data.slice(0, 7);
 }
 
-// Toda a modelagem financeira usa centavos inteiros (INTEGER). Nenhum cálculo
-// em ponto flutuante entra aqui — princípio herdado do projeto original.
 const ESQUEMA = /* SQL */ `
 CREATE TABLE IF NOT EXISTS usuarios (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   nome TEXT NOT NULL,
   email TEXT NOT NULL UNIQUE,
   senha_hash TEXT NOT NULL,
@@ -57,13 +122,13 @@ CREATE TABLE IF NOT EXISTS sessoes (
 );
 
 CREATE TABLE IF NOT EXISTS coordenacoes (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   codigo TEXT NOT NULL UNIQUE,
   nome TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS turmas (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   codigo TEXT NOT NULL UNIQUE,
   nome TEXT NOT NULL,
   coordenacao_id INTEGER NOT NULL REFERENCES coordenacoes(id),
@@ -71,14 +136,14 @@ CREATE TABLE IF NOT EXISTS turmas (
 );
 
 CREATE TABLE IF NOT EXISTS categorias (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   codigo TEXT NOT NULL UNIQUE,
   nome TEXT NOT NULL,
   ativo INTEGER NOT NULL DEFAULT 1
 );
 
 CREATE TABLE IF NOT EXISTS centros_custo (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   codigo TEXT NOT NULL UNIQUE,
   nome TEXT NOT NULL,
   tipo TEXT NOT NULL DEFAULT 'setor',
@@ -86,7 +151,7 @@ CREATE TABLE IF NOT EXISTS centros_custo (
 );
 
 CREATE TABLE IF NOT EXISTS setores (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   codigo TEXT NOT NULL UNIQUE,
   nome TEXT NOT NULL,
   centro_custo_id INTEGER REFERENCES centros_custo(id),
@@ -94,19 +159,19 @@ CREATE TABLE IF NOT EXISTS setores (
 );
 
 CREATE TABLE IF NOT EXISTS fornecedores (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   nome TEXT NOT NULL UNIQUE,
   ativo INTEGER NOT NULL DEFAULT 1
 );
 
 CREATE TABLE IF NOT EXISTS projetos (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   nome TEXT NOT NULL UNIQUE,
   ativo INTEGER NOT NULL DEFAULT 1
 );
 
 CREATE TABLE IF NOT EXISTS compras (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   numero TEXT NOT NULL UNIQUE,
   data TEXT NOT NULL,
   competencia TEXT NOT NULL,
@@ -136,7 +201,7 @@ CREATE INDEX IF NOT EXISTS idx_compras_competencia ON compras(competencia);
 CREATE INDEX IF NOT EXISTS idx_compras_fornecedor ON compras(fornecedor);
 
 CREATE TABLE IF NOT EXISTS alocacoes (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   compra_id INTEGER NOT NULL REFERENCES compras(id) ON DELETE CASCADE,
   categoria_id INTEGER NOT NULL REFERENCES categorias(id),
   setor_id INTEGER NOT NULL REFERENCES setores(id),
@@ -152,19 +217,21 @@ CREATE INDEX IF NOT EXISTS idx_alocacoes_setor ON alocacoes(setor_id);
 CREATE INDEX IF NOT EXISTS idx_alocacoes_categoria ON alocacoes(categoria_id);
 
 CREATE TABLE IF NOT EXISTS anexos (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   compra_id INTEGER NOT NULL REFERENCES compras(id) ON DELETE CASCADE,
   nome_arquivo TEXT NOT NULL,
   caminho TEXT NOT NULL,
   mime TEXT NOT NULL DEFAULT '',
   tamanho_bytes INTEGER NOT NULL,
   legivel INTEGER,
+  remoto_id TEXT NOT NULL DEFAULT '',
+  remoto_url TEXT NOT NULL DEFAULT '',
   criado_por INTEGER NOT NULL REFERENCES usuarios(id),
   criado_em TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS eventos_financeiros (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   compra_id INTEGER NOT NULL REFERENCES compras(id) ON DELETE CASCADE,
   tipo TEXT NOT NULL CHECK (tipo IN ('estorno','reembolso','transferencia','correcao')),
   valor_centavos INTEGER NOT NULL,
@@ -174,14 +241,14 @@ CREATE TABLE IF NOT EXISTS eventos_financeiros (
 );
 
 CREATE TABLE IF NOT EXISTS faturas (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   competencia TEXT NOT NULL UNIQUE,
   total_centavos INTEGER NOT NULL DEFAULT 0,
   criado_em TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS itens_fatura (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   fatura_id INTEGER NOT NULL REFERENCES faturas(id) ON DELETE CASCADE,
   data TEXT NOT NULL,
   descricao TEXT NOT NULL DEFAULT '',
@@ -201,7 +268,7 @@ CREATE TABLE IF NOT EXISTS fechamentos (
 );
 
 CREATE TABLE IF NOT EXISTS trilha_auditoria (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   usuario_id INTEGER,
   usuario_nome TEXT NOT NULL DEFAULT '',
   entidade TEXT NOT NULL,
@@ -214,7 +281,7 @@ CREATE TABLE IF NOT EXISTS trilha_auditoria (
   criado_em TEXT NOT NULL
 );
 
-CREATE VIEW IF NOT EXISTS vw_resumo_compra AS
+CREATE OR REPLACE VIEW vw_resumo_compra AS
 SELECT c.id,
        c.valor_centavos,
        COALESCE((SELECT SUM(a.valor_centavos) FROM alocacoes a WHERE a.compra_id = c.id), 0) AS rateado_centavos,
@@ -287,35 +354,152 @@ const SETORES: (Catalogo & { cc?: string })[] = [
   { codigo: "SET-OUT", nome: "Outros destinos aprovados" },
 ];
 
-function semear(db: Database.Database) {
-  const temUsuarios = (db.prepare("SELECT COUNT(*) AS n FROM usuarios").get() as { n: number }).n;
-  if (temUsuarios > 0) return;
+async function semear() {
+  const cliente = await obterPool().connect();
+  try {
+    await cliente.query("BEGIN");
+    const { rows } = await cliente.query("SELECT COUNT(*) AS n FROM usuarios");
+    const temUsuarios = Number(rows[0]?.n ?? 0);
+    if (temUsuarios === 0) {
+      for (const c of COORDENACOES) {
+        await cliente.query("INSERT INTO coordenacoes(codigo, nome) VALUES ($1, $2) ON CONFLICT (codigo) DO NOTHING", [c.codigo, c.nome]);
+      }
+      const idCoord = new Map<string, number>();
+      for (const r of (await cliente.query("SELECT id, codigo FROM coordenacoes")).rows as { id: number; codigo: string }[]) {
+        idCoord.set(r.codigo, r.id);
+      }
+      for (const t of TURMAS) {
+        await cliente.query("INSERT INTO turmas(codigo, nome, coordenacao_id) VALUES ($1, $2, $3) ON CONFLICT (codigo) DO NOTHING", [
+          t.codigo,
+          t.nome,
+          idCoord.get(t.coordenacao),
+        ]);
+      }
+      for (const c of CATEGORIAS) {
+        await cliente.query("INSERT INTO categorias(codigo, nome) VALUES ($1, $2) ON CONFLICT (codigo) DO NOTHING", [c.codigo, c.nome]);
+      }
+      for (const c of CENTROS_CUSTO) {
+        await cliente.query("INSERT INTO centros_custo(codigo, nome, tipo) VALUES ($1, $2, $3) ON CONFLICT (codigo) DO NOTHING", [c.codigo, c.nome, c.tipo]);
+      }
+      const idCc = new Map<string, number>();
+      for (const r of (await cliente.query("SELECT id, codigo FROM centros_custo")).rows as { id: number; codigo: string }[]) {
+        idCc.set(r.codigo, r.id);
+      }
+      for (const s of SETORES) {
+        await cliente.query("INSERT INTO setores(codigo, nome, centro_custo_id) VALUES ($1, $2, $3) ON CONFLICT (codigo) DO NOTHING", [
+          s.codigo,
+          s.nome,
+          s.cc ? idCc.get(s.cc) ?? null : null,
+        ]);
+      }
+    }
+    await cliente.query("COMMIT");
+  } catch (erro) {
+    try {
+      await cliente.query("ROLLBACK");
+    } catch {
+      // segue para o erro original
+    }
+    throw erro;
+  } finally {
+    cliente.release();
+  }
+}
 
-  const semearTx = db.transaction(() => {
-    const coord = db.prepare("INSERT INTO coordenacoes(codigo, nome) VALUES (?, ?)");
-    for (const c of COORDENACOES) coord.run(c.codigo, c.nome);
+let inicializacao: Promise<void> | undefined;
 
-    const idCoord = new Map<string, number>(
-      (db.prepare("SELECT id, codigo FROM coordenacoes").all() as { id: number; codigo: string }[]).map(
-        (r) => [r.codigo, r.id],
-      ),
-    );
-    const turma = db.prepare("INSERT INTO turmas(codigo, nome, coordenacao_id) VALUES (?, ?, ?)");
-    for (const t of TURMAS) turma.run(t.codigo, t.nome, idCoord.get(t.coordenacao));
+async function inicializar(): Promise<void> {
+  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+  await obterPool().query(ESQUEMA);
+  await migrarAnexosRemotos();
+  await semear();
+}
 
-    const categoria = db.prepare("INSERT INTO categorias(codigo, nome) VALUES (?, ?)");
-    for (const c of CATEGORIAS) categoria.run(c.codigo, c.nome);
+// Bancos criados antes das colunas do FiveManage ganham a migração aqui.
+// Código 42701 = coluna já existe: segue sem erro.
+async function migrarAnexosRemotos(): Promise<void> {
+  for (const ddl of [
+    "ALTER TABLE anexos ADD COLUMN remoto_id TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE anexos ADD COLUMN remoto_url TEXT NOT NULL DEFAULT ''",
+  ]) {
+    try {
+      await obterPool().query(ddl);
+    } catch (erro) {
+      if ((erro as { code?: string })?.code !== "42701") throw erro;
+    }
+  }
+}
 
-    const cc = db.prepare("INSERT INTO centros_custo(codigo, nome, tipo) VALUES (?, ?, ?)");
-    for (const c of CENTROS_CUSTO) cc.run(c.codigo, c.nome, c.tipo);
+async function prontoBD(): Promise<void> {
+  inicializacao ??= inicializar();
+  await inicializacao;
+}
 
-    const idCc = new Map<string, number>(
-      (db.prepare("SELECT id, codigo FROM centros_custo").all() as { id: number; codigo: string }[]).map(
-        (r) => [r.codigo, r.id],
-      ),
-    );
-    const setor = db.prepare("INSERT INTO setores(codigo, nome, centro_custo_id) VALUES (?, ?, ?)");
-    for (const s of SETORES) setor.run(s.codigo, s.nome, s.cc ? idCc.get(s.cc) ?? null : null);
-  });
-  semearTx();
+// O driver pg usa placeholders $1, $2, ...; o código da aplicação (conversado
+// com versão SQLite) usa "?". Convertemos automaticamente na fronteira; o SQL
+// da base nunca usa "?" dentro de literais.
+function converterPlaceholders(sql: string, params: unknown[]): [string, unknown[]] {
+  if (!sql.includes("?")) return [sql, params];
+  let pos = 0;
+  const novo = sql.replace(/\?/g, () => `$${++pos}`);
+  return [novo, params];
+}
+
+async function get<T extends QueryResultRow = Record<string, unknown>>(
+  sql: string,
+  params: unknown[] = [],
+): Promise<T | undefined> {
+  await prontoBD();
+  const [novo, novosParams] = converterPlaceholders(sql, params);
+  const atual = contexto.getStore();
+  const res = atual ? await atual.query(novo, novosParams) : await obterPool().query(novo, novosParams);
+  return res.rows[0] as T | undefined;
+}
+
+async function all<T extends QueryResultRow = Record<string, unknown>>(
+  sql: string,
+  params: unknown[] = [],
+): Promise<T[]> {
+  await prontoBD();
+  const [novo, novosParams] = converterPlaceholders(sql, params);
+  const atual = contexto.getStore();
+  const res = atual ? await atual.query(novo, novosParams) : await obterPool().query(novo, novosParams);
+  return res.rows as T[];
+}
+
+async function run(sql: string, params: unknown[] = []): Promise<ResultadoRun> {
+  await prontoBD();
+  const [novo, novosParams] = converterPlaceholders(sql, params);
+  const atual = contexto.getStore();
+  const res = atual ? await atual.query(novo, novosParams) : await obterPool().query(novo, novosParams);
+  const linha = res.rows[0] as Record<string, unknown> | undefined;
+  const lastInsertRowid =
+    linha && Object.prototype.hasOwnProperty.call(linha, "id") ? Number(linha.id) : 0;
+  return { changes: res.rowCount ?? 0, lastInsertRowid };
+}
+
+async function transacao<U>(funcao: () => Promise<U> | U): Promise<U> {
+  await prontoBD();
+  const atual = contexto.getStore();
+  if (atual) return funcao();
+  const cliente = await obterPool().connect();
+  try {
+    await cliente.query("BEGIN");
+    const resultado = await contexto.run(cliente, funcao);
+    await cliente.query("COMMIT");
+    return resultado;
+  } catch (erro) {
+    try {
+      await cliente.query("ROLLBACK");
+    } catch {
+      // segue para o erro original
+    }
+    throw erro;
+  } finally {
+    cliente.release();
+  }
+}
+
+export function banco(): Banco {
+  return { get, all, run, transaction: transacao };
 }

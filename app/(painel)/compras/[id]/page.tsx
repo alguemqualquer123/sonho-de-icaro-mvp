@@ -12,12 +12,12 @@ import {
   Numero,
   Painel,
   Recado,
-  Selecao,
   Selo,
   Tabela,
   Valor,
   Vazio,
 } from "@/components/ui";
+import { Selecao } from "@/components/selecao";
 import { exigirUsuario } from "@/lib/auth";
 import { fechamentoDaCompetencia, verCompra, type Alocacao } from "@/lib/compras";
 import { opcoesCatalogos } from "@/lib/cadastros";
@@ -91,12 +91,13 @@ function FormularioAlocacao({
   compraId,
   alocacao,
   voltarPara,
+  catalogos,
 }: {
   compraId: number;
   alocacao: Alocacao | null;
   voltarPara: string;
+  catalogos: Awaited<ReturnType<typeof opcoesCatalogos>>;
 }) {
-  const catalogos = opcoesCatalogos();
   const editando = alocacao !== null;
   return (
     <form action={salvarAlocacaoAction} className="space-y-4">
@@ -108,21 +109,21 @@ function FormularioAlocacao({
           name="categoria_id"
           required
           defaultValor={alocacao ? String(alocacao.categoria_id) : undefined}
-          opcoes={catalogos.categorias.map((c) => ({ valor: String(c.id), rotulo: c.nome }))}
+          opcoes={catalogos.categorias.map((c: any) => ({ valor: String(c.id), rotulo: String(c.nome) }))}
         />
         <Selecao
           rotulo="Setor"
           name="setor_id"
           required
           defaultValor={alocacao ? String(alocacao.setor_id) : undefined}
-          opcoes={catalogos.setores.map((s) => ({ valor: String(s.id), rotulo: s.nome }))}
+          opcoes={catalogos.setores.map((s: any) => ({ valor: String(s.id), rotulo: String(s.nome) }))}
         />
         <Selecao
           rotulo="Turma (opcional)"
           name="turma_id"
           vazio="sem turma vinculada"
           defaultValor={alocacao?.turma_id ? String(alocacao.turma_id) : ""}
-          opcoes={catalogos.turmas.map((t) => ({
+          opcoes={catalogos.turmas.map((t: any) => ({
             valor: String(t.id),
             rotulo: `${t.codigo} · ${t.nome}`,
             grupo: t.coordenacao,
@@ -133,14 +134,14 @@ function FormularioAlocacao({
           name="centro_custo_id"
           vazio="usar o centro do setor"
           defaultValor={alocacao?.centro_custo_id ? String(alocacao.centro_custo_id) : ""}
-          opcoes={catalogos.centrosCusto.map((c) => ({ valor: String(c.id), rotulo: c.nome, grupo: c.tipo }))}
+          opcoes={catalogos.centrosCusto.map((c: any) => ({ valor: String(c.id), rotulo: String(c.nome), grupo: c.tipo }))}
         />
         <Selecao
           rotulo="Projeto (opcional)"
           name="projeto_id"
           vazio="sem projeto"
           defaultValor={alocacao?.projeto_id ? String(alocacao.projeto_id) : ""}
-          opcoes={catalogos.projetos.map((p) => ({ valor: String(p.id), rotulo: p.nome }))}
+          opcoes={catalogos.projetos.map((p: any) => ({ valor: String(p.id), rotulo: String(p.nome) }))}
         />
         <Campo
           rotulo="Valor desta parte"
@@ -191,9 +192,9 @@ export default async function CompraDetalhe({
     );
   }
 
-  let dados: ReturnType<typeof verCompra>;
+  let dados: Awaited<ReturnType<typeof verCompra>>;
   try {
-    dados = verCompra(compraId, usuario);
+    dados = await verCompra(compraId, usuario);
   } catch (erro) {
     return (
       <div>
@@ -213,7 +214,7 @@ export default async function CompraDetalhe({
   const podeCancelar = pode(papel, PERMISSOES.comprasCancelar);
   const podeRevisar = pode(papel, PERMISSOES.revisaoGerir);
 
-  const fechamento = fechamentoDaCompetencia(compra.competencia);
+  const fechamento = await fechamentoDaCompetencia(compra.competencia);
   const mesFechado = Boolean(fechamento && !fechamento.reaberto_em);
   const compraCancelada = compra.status === "cancelada";
   const aprovadaTravada = compra.status === "aprovada" && !podeRevisar;
@@ -223,9 +224,9 @@ export default async function CompraDetalhe({
   const saldo = compra.saldo_centavos ?? 0;
   const percentual = compra.valor_centavos > 0 ? Math.round((rateado / compra.valor_centavos) * 1000) / 10 : 0;
 
-  const catalogos = opcoesCatalogos();
-  const ccNome = new Map(catalogos.centrosCusto.map((c) => [c.id, c.nome]));
-  const projetoNome = new Map(catalogos.projetos.map((p) => [p.id, p.nome]));
+  const catalogos = await opcoesCatalogos();
+  const ccNome = new Map(catalogos.centrosCusto.map((c: any) => [c.id, c.nome]));
+  const projetoNome = new Map(catalogos.projetos.map((p: any) => [p.id, p.nome]));
 
   const alocacaoEditando = query.alocacao
     ? alocacoes.find((a) => a.id === Number(query.alocacao)) ?? null
@@ -233,17 +234,19 @@ export default async function CompraDetalhe({
 
   // A trilha por compra não tem função pronta em lib/auditoria.ts filtrando por
   // entidade composta; a consulta abaixo é feita direto no banco (aceito aqui).
-  const trilha = banco()
-    .prepare(
-      `SELECT id, entidade, entidade_id, acao, usuario_nome, motivo, criado_em, antes, depois
-         FROM trilha_auditoria
-        WHERE (entidade = 'compra' AND entidade_id = ?)
-           OR (entidade IN ('alocacao', 'anexo') AND
-               (COALESCE(json_extract(depois, '$.compra_id'), json_extract(antes, '$.compra_id')) = ?
-                OR (entidade = 'anexo' AND entidade_id IN (SELECT CAST(id AS TEXT) FROM anexos WHERE compra_id = ?))))
-        ORDER BY id DESC LIMIT 80`,
-    )
-    .all(String(compra.id), compra.id, compra.id) as TrilhaLinha[];
+  const trilha = await banco().all<TrilhaLinha>(
+    `SELECT id, entidade, entidade_id, acao, usuario_nome, motivo, criado_em, antes, depois
+       FROM trilha_auditoria
+      WHERE (entidade = 'compra' AND entidade_id = ?)
+         OR (entidade IN ('alocacao', 'anexo') AND
+             (COALESCE(
+                (CASE WHEN depois IS NOT NULL THEN (depois::jsonb ->> 'compra_id') ELSE NULL END),
+                (CASE WHEN antes IS NOT NULL THEN (antes::jsonb ->> 'compra_id') ELSE NULL END)
+              ) = ?
+              OR (entidade = 'anexo' AND entidade_id IN (SELECT CAST(id AS TEXT) FROM anexos WHERE compra_id = ?))))
+      ORDER BY id DESC LIMIT 80`,
+    [String(compra.id), String(compra.id), compra.id],
+  );
 
   const linkVoltar = <Link href="/compras" className="text-xs text-indigo-300 hover:underline">← voltar para compras</Link>;
 
@@ -351,7 +354,7 @@ export default async function CompraDetalhe({
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-white/55">
                 {alocacaoEditando ? `Editando alocação ${alocacaoEditando.id}` : "Nova alocação"}
               </h3>
-              <FormularioAlocacao compraId={compra.id} alocacao={alocacaoEditando} voltarPara={`/compras/${compra.id}`} />
+              <FormularioAlocacao compraId={compra.id} alocacao={alocacaoEditando} voltarPara={`/compras/${compra.id}`} catalogos={catalogos} />
             </div>
             <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-white/55">Repartir o saldo igualmente</h3>
@@ -367,20 +370,20 @@ export default async function CompraDetalhe({
                     rotulo="Categoria comum"
                     name="categoria_id"
                     required
-                    opcoes={catalogos.categorias.map((c) => ({ valor: String(c.id), rotulo: c.nome }))}
+opcoes={catalogos.categorias.map((c: any) => ({ valor: String(c.id), rotulo: String(c.nome) }))}
                   />
                   <Selecao
                     rotulo="Setor comum"
                     name="setor_id"
                     required
-                    opcoes={catalogos.setores.map((s) => ({ valor: String(s.id), rotulo: s.nome }))}
+                    opcoes={catalogos.setores.map((s: any) => ({ valor: String(s.id), rotulo: String(s.nome) }))}
                   />
                   <Campo rotulo="Quantidade de partes" name="partes" type="number" required min={1} placeholder="3" hint="o saldo é dividido em partes iguais (centavos sobram para as primeiras)" />
                   <Selecao
                     rotulo="Turma (opcional)"
                     name="turma_id"
                     vazio="sem turma"
-                    opcoes={catalogos.turmas.map((t) => ({ valor: String(t.id), rotulo: `${t.codigo} · ${t.nome}`, grupo: t.coordenacao }))}
+                    opcoes={catalogos.turmas.map((t: any) => ({ valor: String(t.id), rotulo: `${t.codigo} · ${t.nome}`, grupo: t.coordenacao }))}
                   />
                 </div>
                 <Botao variante="secundario">Repartir o saldo igualmente</Botao>
@@ -528,7 +531,7 @@ export default async function CompraDetalhe({
                     name="setor_id"
                     vazio="sem setor"
                     defaultValor={compra.setor_id ? String(compra.setor_id) : ""}
-                    opcoes={catalogos.setores.map((s) => ({ valor: String(s.id), rotulo: s.nome }))}
+                    opcoes={catalogos.setores.map((s: any) => ({ valor: String(s.id), rotulo: String(s.nome) }))}
                   />
                 </div>
                 <Area rotulo="Observação" name="observacao" rows={2} defaultValue={compra.observacao || undefined} />

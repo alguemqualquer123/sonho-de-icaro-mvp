@@ -92,9 +92,9 @@ function lerLinhasDaFatura(bruto: string): { itens: ItemLido[]; erros: string[] 
 export async function criarFaturaAction(formData: FormData) {
   const usuario = await exigirUsuario();
   const competencia = competenciaDoForm(formData);
-  const jaExistia = Boolean(obterFatura(competencia));
+  const jaExistia = Boolean(await obterFatura(competencia));
   try {
-    criarFatura(competencia, usuario);
+    await criarFatura(competencia, usuario);
   } catch (erro) {
     flashErro(erro);
   }
@@ -114,8 +114,8 @@ export async function inserirItensAction(formData: FormData) {
   try {
     let destino = numero(formData, "fatura_id");
     if (!destino) {
-      const existente = obterFatura(competencia);
-      destino = existente ? existente.id : criarFatura(competencia, usuario);
+      const existente = await obterFatura(competencia);
+      destino = existente ? existente.id : await criarFatura(competencia, usuario);
       criouFatura = !existente;
     }
     const lidos = lerLinhasDaFatura(texto(formData, "itens", 20000));
@@ -123,7 +123,7 @@ export async function inserirItensAction(formData: FormData) {
       invalido(`nenhum item foi importado — ${lidos.erros.slice(0, 4).join("; ")}`);
     }
     if (lidos.itens.length === 0) invalido("nenhuma linha válida encontrada no texto");
-    importados = inserirItens(destino, lidos.itens, usuario);
+    importados = await inserirItens(destino, lidos.itens, usuario);
   } catch (erro) {
     flashErro(erro);
   }
@@ -141,7 +141,7 @@ export async function pareamentoAutomaticoAction(formData: FormData) {
   let pareados = 0;
   let semPar = 0;
   try {
-    const resultado = pareamentoAutomatico(numero(formData, "fatura_id"), usuario);
+    const resultado = await pareamentoAutomatico(numero(formData, "fatura_id"), usuario);
     pareados = resultado.pareados;
     semPar = resultado.tolerancia;
   } catch (erro) {
@@ -157,7 +157,7 @@ export async function parearManualAction(formData: FormData) {
   const usuario = await exigirUsuario();
   const competencia = competenciaDoForm(formData);
   try {
-    parearManual(numero(formData, "item_id"), numero(formData, "compra_id"), texto(formData, "motivo"), usuario);
+    await parearManual(numero(formData, "item_id"), numero(formData, "compra_id"), texto(formData, "motivo"), usuario);
   } catch (erro) {
     flashErro(erro);
   }
@@ -168,7 +168,7 @@ export async function desfazerParAction(formData: FormData) {
   const usuario = await exigirUsuario();
   const competencia = competenciaDoForm(formData);
   try {
-    desfazerPar(numero(formData, "item_id"), texto(formData, "motivo"), usuario);
+    await desfazerPar(numero(formData, "item_id"), texto(formData, "motivo"), usuario);
   } catch (erro) {
     flashErro(erro);
   }
@@ -179,7 +179,7 @@ export async function fecharMesAction(formData: FormData) {
   const usuario = await exigirUsuario();
   const competencia = competenciaDoForm(formData);
   try {
-    fecharMes(competencia, texto(formData, "motivo"), usuario);
+    await fecharMes(competencia, texto(formData, "motivo"), usuario);
   } catch (erro) {
     flashErro(erro);
   }
@@ -193,7 +193,7 @@ export async function reabrirMesAction(formData: FormData) {
   const usuario = await exigirUsuario();
   const competencia = competenciaDoForm(formData);
   try {
-    reabrirMes(competencia, texto(formData, "justificativa"), usuario);
+    await reabrirMes(competencia, texto(formData, "justificativa"), usuario);
   } catch (erro) {
     flashErro(erro);
   }

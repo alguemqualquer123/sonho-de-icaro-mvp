@@ -38,7 +38,7 @@ export async function criarCadastroAction(formData: FormData) {
   exigirGestao(usuario.papel);
   const entidade = entidadeValida(texto(formData, "entidade", 40));
   try {
-    criarCadastro(
+    await criarCadastro(
       entidade,
       {
         codigo: texto(formData, "codigo", 40),
@@ -62,7 +62,7 @@ export async function editarCadastroAction(formData: FormData) {
   try {
     const id = numero(formData, "id");
     if (!id) invalido("cadastro sem identificação");
-    editarCadastro(
+    await editarCadastro(
       entidade,
       id,
       {
@@ -87,7 +87,7 @@ export async function desativarCadastroAction(formData: FormData) {
     if (!id) invalido("cadastro sem identificação");
     const motivo = texto(formData, "motivo", 400);
     if (motivo === "") invalido("informe o motivo da desativação (ou da reativação) antes de confirmar");
-    desativarCadastro(entidade, id, motivo, usuario);
+    await desativarCadastro(entidade, id, motivo, usuario);
   } catch (erro) {
     flashErro(erro);
   }

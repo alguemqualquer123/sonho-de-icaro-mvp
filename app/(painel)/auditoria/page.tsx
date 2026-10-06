@@ -7,10 +7,10 @@ import {
   Cabecalho,
   Painel,
   Recado,
-  Selecao,
   Tabela,
   type Opcao,
 } from "@/components/ui";
+import { Selecao } from "@/components/selecao";
 import { exigirUsuario } from "@/lib/auth";
 import { listarTrilha } from "@/lib/auditoria";
 import { listarUsuarios } from "@/lib/usuarios";
@@ -69,11 +69,12 @@ export default async function AuditoriaPage({
 
   // A trilha grava cadastros como "cadastro:categorias" etc.; o atalho
   // "cadastro" agrupa todos, por isso buscamos sem filtro e peneiramos aqui.
-  const bruto = listarTrilha(limite, entidadeFiltro === "cadastro" ? "" : entidadeFiltro, usuarioFiltro);
+  const [bruto, contas] = await Promise.all([
+    listarTrilha(limite, entidadeFiltro === "cadastro" ? "" : entidadeFiltro, usuarioFiltro),
+    listarUsuarios(),
+  ]);
   const linhas =
     entidadeFiltro === "cadastro" ? bruto.filter((l) => l.entidade.startsWith("cadastro")) : bruto;
-
-  const contas = listarUsuarios();
   const opcoesUsuario: Opcao[] = contas.map((u) => ({ valor: String(u.id), rotulo: `${u.nome} (${u.email})` }));
   const opcoesEntidade: Opcao[] = ATALHOS.map((e) => ({ valor: e, rotulo: e }));
   const opcoesLimite: Opcao[] = ROTULOS_LIMITE.map((n) => ({ valor: n, rotulo: `últimos ${n} eventos` }));

@@ -149,36 +149,6 @@ export function Area({
 
 export type Opcao = { valor: string; rotulo: string; grupo?: string };
 
-export function Selecao({
-  rotulo,
-  name,
-  opcoes,
-  defaultValor,
-  vazio,
-  required,
-}: {
-  rotulo: string;
-  name: string;
-  opcoes: Opcao[];
-  defaultValor?: string;
-  vazio?: string;
-  required?: boolean;
-}) {
-  return (
-    <label className="block">
-      <span className="mb-1.5 block text-xs font-medium text-white/60">{rotulo}</span>
-      <select name={name} defaultValue={defaultValor} required={required} className={INPUT}>
-        {vazio ? <option value="">{vazio}</option> : null}
-        {opcoes.map((o) => (
-          <option key={o.valor} value={o.valor}>
-            {o.grupo ? `${o.grupo} · ${o.rotulo}` : o.rotulo}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
-
 export function Botao({
   children,
   variante = "primario",

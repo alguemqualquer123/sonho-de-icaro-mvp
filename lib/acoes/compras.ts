@@ -38,7 +38,7 @@ export async function criarCompraAction(fd: FormData) {
   if (valorBruto === "") erroCampo("valor");
   let id = 0;
   try {
-    id = criarCompra(
+    id = await criarCompra(
       {
         data: texto(fd, "data", 10),
         fornecedor: texto(fd, "fornecedor", 200),
@@ -63,7 +63,7 @@ export async function editarCompraAction(fd: FormData) {
   const valorBruto = texto(fd, "valor", 30);
   const parcelas = numero(fd, "parcelas_total");
   try {
-    editarCompra(
+    await editarCompra(
       id,
       {
         data: texto(fd, "data", 10) || undefined,
@@ -90,7 +90,7 @@ export async function cancelarCompraAction(fd: FormData) {
   const motivo = texto(fd, "motivo", 400);
   if (motivo === "") erroCampo("motivo do cancelamento");
   try {
-    cancelarCompra(id, motivo, usuario);
+    await cancelarCompra(id, motivo, usuario);
   } catch (erro) {
     flashErro(erro);
   }
@@ -109,7 +109,7 @@ export async function revisarAction(fd: FormData) {
   }
   const motivo = texto(fd, "motivo", 400);
   try {
-    revisarCompra(id, usuario, { acao: acao as (typeof ACÕES_REVISAO)[number], motivo });
+    await revisarCompra(id, usuario, { acao: acao as (typeof ACÕES_REVISAO)[number], motivo });
   } catch (erro) {
     flashErro(erro);
   }
@@ -134,7 +134,7 @@ export async function compensarAction(fd: FormData) {
   const motivo = texto(fd, "motivo", 400);
   if (motivo === "") erroCampo("motivo");
   try {
-    registrarCompensacao(id, tipo, parsearCentavos(valorBruto), motivo, usuario);
+    await registrarCompensacao(id, tipo, parsearCentavos(valorBruto), motivo, usuario);
   } catch (erro) {
     flashErro(erro);
   }
@@ -160,7 +160,7 @@ export async function salvarAlocacaoAction(fd: FormData) {
       valor_centavos: parsearCentavos(valorBruto),
       observacao: texto(fd, "observacao"),
     };
-    alocacaoId = salvarAlocacao(input, usuario, texto(fd, "motivo", 400));
+    alocacaoId = await salvarAlocacao(input, usuario, texto(fd, "motivo", 400));
   } catch (erro) {
     flashErro(erro);
   }
@@ -178,7 +178,7 @@ export async function excluirAlocacaoAction(fd: FormData) {
   const motivo = texto(fd, "motivo", 400);
   if (motivo === "") erroCampo("motivo da exclusão");
   try {
-    excluirAlocacao(id, usuario, motivo);
+    await excluirAlocacao(id, usuario, motivo);
   } catch (erro) {
     flashErro(erro);
   }
@@ -191,7 +191,7 @@ export async function dividirRateioIgualAction(fd: FormData) {
   const partes = numero(fd, "partes");
   let repartidas = 0;
   try {
-    const compra = obterCompra(compraId);
+    const compra = await obterCompra(compraId);
     if (partes < 1 || partes > 50) throw new Error("informe de 1 a 50 partes para a divisão igual");
     const saldo = compra.saldo_centavos ?? 0;
     if (saldo <= 0) throw new Error("não há saldo a repartir: o rateio já cobre o total da compra");
@@ -206,13 +206,13 @@ export async function dividirRateioIgualAction(fd: FormData) {
       projeto_id: opcionalNumero(fd, "projeto_id"),
     };
     const obs = texto(fd, "observacao");
-    valores.forEach((valor, i) => {
-      salvarAlocacao(
-        { ...base, valor_centavos: valor, observacao: `parte ${i + 1} de ${partes}${obs ? ` · ${obs}` : ""}` },
+    for (let i = 0; i < valores.length; i++) {
+      await salvarAlocacao(
+        { ...base, valor_centavos: valores[i], observacao: `parte ${i + 1} de ${partes}${obs ? ` · ${obs}` : ""}` },
         usuario,
       );
       repartidas += 1;
-    });
+    }
   } catch (erro) {
     flashErro(erro);
   }
@@ -244,7 +244,7 @@ export async function marcarLegibilidadeAction(fd: FormData) {
   const motivo = texto(fd, "motivo", 400);
   if (motivo === "") erroCampo("motivo da avaliação");
   try {
-    marcarLegibilidadeAnexo(id, legivel, motivo, usuario);
+    await marcarLegibilidadeAnexo(id, legivel, motivo, usuario);
   } catch (erro) {
     flashErro(erro);
   }
@@ -259,7 +259,7 @@ export async function removerAnexoAction(fd: FormData) {
   const motivo = texto(fd, "motivo", 400);
   if (motivo === "") erroCampo("motivo da remoção");
   try {
-    removerAnexo(id, motivo, usuario);
+    await removerAnexo(id, motivo, usuario);
   } catch (erro) {
     flashErro(erro);
   }

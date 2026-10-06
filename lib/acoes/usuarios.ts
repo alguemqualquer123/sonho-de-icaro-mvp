@@ -19,7 +19,7 @@ export async function criarUsuarioAction(formData: FormData) {
   const papelBruto = texto(formData, "papel", 20);
   const papel = papelBruto === "" ? undefined : (papelBruto as Papel);
   try {
-    criarUsuario(
+    await criarUsuario(
       {
         nome,
         email: texto(formData, "email", 200),
@@ -43,7 +43,7 @@ export async function alterarPapelAction(formData: FormData) {
     alvo = numero(formData, "id");
     if (!alvo) invalido("usuário sem identificação");
     if (!PAPEIS.some((p) => p.valor === papelBruto)) invalido("perfil desconhecido");
-    alterarUsuario(alvo, { papel: papelBruto as Papel }, autor);
+    await alterarUsuario(alvo, { papel: papelBruto as Papel }, autor);
   } catch (erro) {
     flashErro(erro);
   }
@@ -60,7 +60,7 @@ export async function alternarAtivoAction(formData: FormData) {
     alvo = numero(formData, "id");
     if (!alvo) invalido("usuário sem identificação");
     if (atual !== "1" && atual !== "0") invalido("estado de atividade inválido");
-    alterarUsuario(alvo, { ativo: seraAtivo }, autor);
+    await alterarUsuario(alvo, { ativo: seraAtivo }, autor);
   } catch (erro) {
     flashErro(erro);
   }
@@ -79,7 +79,7 @@ export async function definirSenhaAction(formData: FormData) {
     if (!alvo) invalido("usuário sem identificação");
     const senha = String(formData.get("senha") ?? "");
     if (senha === "") invalido("informe a nova senha");
-    alterarUsuario(alvo, { senha }, autor);
+    await alterarUsuario(alvo, { senha }, autor);
   } catch (erro) {
     flashErro(erro);
   }

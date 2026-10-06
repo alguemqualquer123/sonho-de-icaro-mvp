@@ -9,11 +9,11 @@ import {
   Campo,
   Painel,
   Recado,
-  Selecao,
   Selo,
   Tabela,
   type Opcao,
 } from "@/components/ui";
+import { Selecao } from "@/components/selecao";
 import { exigirUsuario } from "@/lib/auth";
 import { ENTIDADES, listarEntidade, nomeEntidade, opcoesCatalogos, type Entidade } from "@/lib/cadastros";
 import { PERMISSOES, pode } from "@/lib/rbac";
@@ -94,8 +94,10 @@ export default async function CadastrosPage({
   const entidade: Entidade = (ENTIDADES as readonly string[]).includes(params.entidade ?? "")
     ? (params.entidade as Entidade)
     : "categorias";
-  const linhas = listarEntidade(entidade);
-  const catalogos = canGerir ? opcoesCatalogos() : null;
+  const [linhas, catalogos] = await Promise.all([
+    listarEntidade(entidade),
+    canGerir ? opcoesCatalogos() : Promise.resolve(null),
+  ]);
   const temCodigo = TEM_CODIGO.includes(entidade);
 
   const chaves = linhas.length > 0 ? Object.keys(linhas[0]) : ["id", "codigo", "nome", "ativo", "usos"];
@@ -123,7 +125,7 @@ export default async function CadastrosPage({
                   name="coordenacao_id"
                   vazio="Manter coordenação atual"
                   defaultValor={linha.coordenacao_id != null ? String(linha.coordenacao_id) : undefined}
-                  opcoes={catalogos.coordenacoes.map((c) => ({ valor: String(c.id), rotulo: c.nome }))}
+opcoes={catalogos.coordenacoes.map((c: any) => ({ valor: String(c.id), rotulo: String(c.nome) }))}
                 />
               ) : null}
               {entidade === "setores" ? (
@@ -132,7 +134,7 @@ export default async function CadastrosPage({
                   name="centro_custo_id"
                   vazio="Sem centro de custo"
                   defaultValor={linha.centro_custo_id != null ? String(linha.centro_custo_id) : ""}
-                  opcoes={catalogos.centrosCusto.map((c) => ({ valor: String(c.id), rotulo: c.nome }))}
+opcoes={catalogos.centrosCusto.map((c: any) => ({ valor: String(c.id), rotulo: String(c.nome) }))}
                 />
               ) : null}
               <Botao variante="secundario">Salvar edição</Botao>
@@ -204,7 +206,7 @@ export default async function CadastrosPage({
                 name="coordenacao_id"
                 required
                 vazio="Selecione F1 ou F2"
-                opcoes={catalogos.coordenacoes.map((c) => ({ valor: String(c.id), rotulo: c.nome }))}
+                opcoes={catalogos.coordenacoes.map((c: any) => ({ valor: String(c.id), rotulo: String(c.nome) }))}
               />
             ) : null}
             {entidade === "setores" && catalogos ? (
@@ -212,7 +214,7 @@ export default async function CadastrosPage({
                 rotulo="Centro de custo (opcional)"
                 name="centro_custo_id"
                 vazio="Sem centro de custo"
-                opcoes={catalogos.centrosCusto.map((c) => ({ valor: String(c.id), rotulo: c.nome }))}
+                opcoes={catalogos.centrosCusto.map((c: any) => ({ valor: String(c.id), rotulo: String(c.nome) }))}
               />
             ) : null}
             {entidade === "centros-custo" ? (

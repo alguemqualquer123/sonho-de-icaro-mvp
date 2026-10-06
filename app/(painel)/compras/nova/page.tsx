@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Area, Aviso, Botao, Campo, Cabecalho, INPUT, Painel, Recado, Selecao } from "@/components/ui";
+import { Area, Aviso, Botao, Campo, Cabecalho, INPUT, Painel, Recado } from "@/components/ui";
+import { Selecao } from "@/components/selecao";
 import { exigirUsuario } from "@/lib/auth";
 import { opcoesCatalogos } from "@/lib/cadastros";
 import { PERMISSOES, pode } from "@/lib/rbac";
@@ -30,7 +31,7 @@ export default async function NovaCompraPage({
     );
   }
 
-  const catalogos = opcoesCatalogos();
+  const catalogos = await opcoesCatalogos();
 
   return (
     <div>
@@ -63,8 +64,8 @@ export default async function NovaCompraPage({
             </label>
           </div>
           <datalist id="fornecedores-historico">
-            {catalogos.fornecedores.map((f) => (
-              <option key={f.nome} value={f.nome} />
+            {catalogos.fornecedores.map((f: any) => (
+              <option key={String(f.nome)} value={f.nome} />
             ))}
           </datalist>
 
@@ -85,7 +86,7 @@ export default async function NovaCompraPage({
               rotulo="Setor destino (opcional agora)"
               name="setor_id"
               vazio="definir no rateio"
-              opcoes={catalogos.setores.map((s) => ({ valor: String(s.id), rotulo: s.nome }))}
+              opcoes={catalogos.setores.map((s: any) => ({ valor: String(s.id), rotulo: String(s.nome) }))}
             />
           </div>
 

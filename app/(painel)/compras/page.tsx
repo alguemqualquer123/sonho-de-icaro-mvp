@@ -14,6 +14,7 @@ import {
   Tabela,
   Valor,
 } from "@/components/ui";
+import { Selecao } from "@/components/selecao";
 import { exigirUsuario } from "@/lib/auth";
 import { listarCompras } from "@/lib/compras";
 import { PERMISSOES, pode } from "@/lib/rbac";
@@ -36,7 +37,7 @@ export default async function ComprasPage({
   const status = params.status && STATUS_OPCOES.includes(params.status) ? params.status : "";
   const busca = (params.q ?? "").trim();
 
-  const compras = listarCompras(usuario, { competencia, status: status || undefined, busca: busca || undefined });
+  const compras = await listarCompras(usuario, { competencia, status: status || undefined, busca: busca || undefined });
 
   const totalCompras = somarCentavos(...compras.map((c) => c.valor_centavos));
   const totalRateado = somarCentavos(...compras.map((c) => c.rateado_centavos ?? 0));
@@ -120,17 +121,13 @@ export default async function ComprasPage({
             <span className="mb-1.5 block text-xs font-medium text-white/60">Mês de referência</span>
             <input type="month" name="mes" defaultValue={competencia} className={INPUT} />
           </label>
-          <label className="block">
-            <span className="mb-1.5 block text-xs font-medium text-white/60">Status</span>
-            <select name="status" defaultValue={status} className={INPUT}>
-              <option value="">todos os status</option>
-              {STATUS_OPCOES.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Selecao
+            rotulo="Status"
+            name="status"
+            defaultValor={status}
+            vazio="todos os status"
+            opcoes={STATUS_OPCOES.map((s) => ({ valor: s, rotulo: s }))}
+          />
           <label className="block">
             <span className="mb-1.5 block text-xs font-medium text-white/60">Busca</span>
             <input type="search" name="q" defaultValue={busca} placeholder="fornecedor, descrição ou número" className={INPUT} />
