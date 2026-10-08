@@ -10,12 +10,14 @@ import {
   Numero,
   Painel,
   Recado,
+  Selecao,
   Selo,
   Tabela,
   Valor,
 } from "@/components/ui";
 import { exigirUsuario } from "@/lib/auth";
 import { listarCompras } from "@/lib/compras";
+import { opcoesCatalogos } from "@/lib/cadastros";
 import { PERMISSOES, pode } from "@/lib/rbac";
 import { nomeDoMes, normalizarMes, deslocarMes, dataPorExtenso } from "@/lib/datas";
 import { formatarCentavos, somarCentavos } from "@/lib/numerario";
@@ -28,15 +30,22 @@ const STATUS_OPCOES = ["rascunho", "enviada", "aprovada", "contestada", "cancela
 export default async function ComprasPage({
   searchParams,
 }: {
-  searchParams: Promise<{ mes?: string; status?: string; q?: string; erro?: string; ok?: string }>;
+  searchParams: Promise<{ mes?: string; status?: string; q?: string; setor?: string; erro?: string; ok?: string }>;
 }) {
   const usuario = await exigirUsuario();
   const params = await searchParams;
   const competencia = normalizarMes(params.mes);
   const status = params.status && STATUS_OPCOES.includes(params.status) ? params.status : "";
   const busca = (params.q ?? "").trim();
+  const setorId = Number(params.setor ?? "") > 0 ? Number(params.setor) : 0;
+  const catalogos = opcoesCatalogos();
 
-  const compras = listarCompras(usuario, { competencia, status: status || undefined, busca: busca || undefined });
+  const compras = listarCompras(usuario, {
+    competencia,
+    status: status || undefined,
+    busca: busca || undefined,
+    setorId: setorId || undefined,
+  });
 
   const totalCompras = somarCentavos(...compras.map((c) => c.valor_centavos));
   const totalRateado = somarCentavos(...compras.map((c) => c.rateado_centavos ?? 0));
@@ -95,15 +104,15 @@ export default async function ComprasPage({
         titulo={`Compras · ${nomeDoMes(competencia)}`}
         descricao="Cada linha aqui é UMA saída do cartão XP Black. Rateio é distribuição interna: nunca aumenta o total."
         acoes={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Link
-              href={`/compras?mes=${deslocarMes(competencia, -1)}${status ? `&status=${status}` : ""}${busca ? `&q=${encodeURIComponent(busca)}` : ""}`}
+              href={`/compras?mes=${deslocarMes(competencia, -1)}${status ? `&status=${status}` : ""}${busca ? `&q=${encodeURIComponent(busca)}` : ""}${setorId ? `&setor=${setorId}` : ""}`}
               className="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/70 hover:bg-white/10"
             >
               ← mês anterior
             </Link>
             <Link
-              href={`/compras?mes=${deslocarMes(competencia, 1)}${status ? `&status=${status}` : ""}${busca ? `&q=${encodeURIComponent(busca)}` : ""}`}
+              href={`/compras?mes=${deslocarMes(competencia, 1)}${status ? `&status=${status}` : ""}${busca ? `&q=${encodeURIComponent(busca)}` : ""}${setorId ? `&setor=${setorId}` : ""}`}
               className="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/70 hover:bg-white/10"
             >
               próximo mês →
@@ -115,22 +124,25 @@ export default async function ComprasPage({
       <Recado searchParams={params} />
 
       <Painel className="mb-4 p-4">
-        <form method="get" action="/compras" className="grid gap-3 sm:grid-cols-[11rem_12rem_1fr_auto]">
+        <form method="get" action="/compras" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[10rem_11rem_12rem_1fr_auto]">
           <label className="block">
             <span className="mb-1.5 block text-xs font-medium text-white/60">Mês de referência</span>
             <input type="month" name="mes" defaultValue={competencia} className={INPUT} />
           </label>
-          <label className="block">
-            <span className="mb-1.5 block text-xs font-medium text-white/60">Status</span>
-            <select name="status" defaultValue={status} className={INPUT}>
-              <option value="">todos os status</option>
-              {STATUS_OPCOES.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Selecao
+            rotulo="Status"
+            name="status"
+            defaultValor={status}
+            vazio="todos os status"
+            opcoes={STATUS_OPCOES.map((s) => ({ valor: s, rotulo: s }))}
+          />
+          <Selecao
+            rotulo="Setor"
+            name="setor"
+            defaultValor={setorId ? String(setorId) : ""}
+            vazio="todos os setores"
+            opcoes={catalogos.setores.map((s) => ({ valor: String(s.id), rotulo: s.nome }))}
+          />
           <label className="block">
             <span className="mb-1.5 block text-xs font-medium text-white/60">Busca</span>
             <input type="search" name="q" defaultValue={busca} placeholder="fornecedor, descrição ou número" className={INPUT} />

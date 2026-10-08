@@ -50,12 +50,11 @@ const PRINCIPIOS = [
 export default function Principios() {
   return (
     <section id="principios" className="lp-section relative py-20 sm:py-28">
-      <div className="lp-orb lp-orb-purple -left-40 bottom-0 h-[400px] w-[400px] opacity-15" aria-hidden="true" />
 
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-2xl text-center">
           <Reveal>
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium uppercase tracking-widest text-[#a9c4ff]">
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium uppercase tracking-widest text-[#9CC6F5]">
               Inegociáveis
             </span>
           </Reveal>
@@ -78,8 +77,8 @@ export default function Principios() {
             return (
               <Reveal key={principio.titulo} delay={(i % 2) * 90} className="h-full">
                 <article className="lp-card flex h-full gap-4 rounded-3xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur sm:gap-5 sm:p-7">
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-gradient-to-br from-[#7c5cff]/25 to-[#4f8cff]/15">
-                    <Icone className="h-5 w-5 text-[#a9c4ff]" />
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-[#0054A6]/20">
+                    <Icone className="h-5 w-5 text-[#9CC6F5]" />
                   </span>
                   <div>
                     <h3 className="text-base font-semibold text-white sm:text-lg">

@@ -8,7 +8,7 @@ const ALOCACOES = [
     item: "Carne",
     destino: "Alimentação",
     setor: "Integral",
-    cor: "#7c5cff",
+    cor: "#E3062F",
   },
   {
     valor: "R$ 10,00",
@@ -16,7 +16,7 @@ const ALOCACOES = [
     item: "Ferramentas",
     destino: "Infraestrutura",
     setor: "Manutenção",
-    cor: "#4f8cff",
+    cor: "#0066C5",
   },
   {
     valor: "R$ 8,00",
@@ -24,7 +24,7 @@ const ALOCACOES = [
     item: "Materiais",
     destino: "Consumo",
     setor: "Cantina",
-    cor: "#9d84ff",
+    cor: "#0054A6",
   },
   {
     valor: "R$ 7,00",
@@ -32,7 +32,7 @@ const ALOCACOES = [
     item: "Material administrativo",
     destino: "Escritório",
     setor: "Coordenação F1",
-    cor: "#6ea8ff",
+    cor: "#003F8F",
   },
   {
     valor: "R$ 5,00",
@@ -40,21 +40,20 @@ const ALOCACOES = [
     item: "Peça para brinquedo",
     destino: "Reparo",
     setor: "Recreação",
-    cor: "#8b9dff",
+    cor: "#0066C5",
   },
 ] as const;
 
 export default function Rateio() {
   return (
     <section id="rateio" className="lp-section relative overflow-hidden py-20 sm:py-28">
-      <div className="lp-orb lp-orb-blue -left-40 top-1/3 h-[420px] w-[420px] opacity-20" aria-hidden="true" />
 
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Narrativa do problema */}
         <div className="grid gap-10 lg:grid-cols-2 lg:gap-16">
           <div>
             <Reveal>
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium uppercase tracking-widest text-[#a9c4ff]">
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium uppercase tracking-widest text-[#9CC6F5]">
                 <IconSplit className="h-4 w-4" />
                 O problema real
               </span>
@@ -62,7 +61,7 @@ export default function Rateio() {
             <Reveal delay={100}>
               <h2 className="mt-5 text-3xl font-bold leading-tight tracking-tight text-white sm:text-4xl lg:text-5xl">
                 Uma compra atende vários setores.{" "}
-                <span className="text-[#a9c4ff]">A planilha não sabe lidar com isso.</span>
+                <span className="text-[#9CC6F5]">A planilha não sabe lidar com isso.</span>
               </h2>
             </Reveal>
             <Reveal delay={180}>
@@ -83,7 +82,7 @@ export default function Rateio() {
           </div>
 
           <Reveal delay={160}>
-            <div className="lp-glow-behind relative flex h-full flex-col justify-center gap-4 rounded-3xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-xl sm:p-8">
+            <div className="relative flex h-full flex-col justify-center gap-4 rounded-3xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-xl sm:p-8">
               <div className="flex items-start gap-4 rounded-2xl border border-red-400/20 bg-red-400/[0.06] p-4">
                 <IconNoDouble className="mt-0.5 h-6 w-6 shrink-0 text-red-300/80" />
                 <div>
@@ -117,15 +116,15 @@ export default function Rateio() {
 
         {/* Diagrama do rateio */}
         <Reveal delay={100} className="mt-16 sm:mt-20">
-          <div className="mx-auto max-w-5xl rounded-3xl border border-white/10 bg-[#0a0a14]/70 p-5 backdrop-blur-xl sm:p-8">
+          <div className="mx-auto max-w-5xl rounded-3xl border border-white/10 bg-[#08182E]/70 p-5 backdrop-blur-xl sm:p-8">
             <h3 className="text-center text-sm font-semibold uppercase tracking-widest text-slate-400">
               Anatomia de uma compra de R$ 50,00
             </h3>
 
             {/* Compra central */}
-            <div className="lp-pulse mx-auto mt-6 flex w-full max-w-md items-center justify-between gap-4 rounded-2xl border border-[#7c5cff]/40 bg-gradient-to-r from-[#7c5cff]/15 to-[#4f8cff]/15 px-5 py-4 sm:px-7">
+            <div className="lp-pulse mx-auto mt-6 flex w-full max-w-md items-center justify-between gap-4 rounded-2xl border border-[#0066C5]/40 bg-[#0054A6]/10 px-5 py-4 sm:px-7">
               <div>
-                <p className="text-xs uppercase tracking-widest text-[#a9c4ff]">Saída financeira</p>
+                <p className="text-xs uppercase tracking-widest text-[#9CC6F5]">Saída financeira</p>
                 <p className="text-lg font-bold text-white sm:text-xl">Mercado — compra única</p>
               </div>
               <p className="text-xl font-bold tabular-nums text-white sm:text-2xl">R$ 50,00</p>
@@ -137,27 +136,21 @@ export default function Rateio() {
               className="mx-auto mt-2 hidden h-16 w-full max-w-4xl lg:block"
               aria-hidden="true"
             >
-              <path d="M250 0 V14" stroke="rgba(124,92,255,0.6)" strokeWidth="1.5" fill="none" />
+              <path d="M250 0 V14" stroke="rgba(0,84,166,0.6)" strokeWidth="1.5" fill="none" />
               {[50, 150, 250, 350, 450].map((x) => (
                 <path
                   key={x}
                   d={`M250 14 C250 40 ${x} 34 ${x} 64`}
                   className="lp-flow-line"
-                  stroke="url(#lp-flow-grad)"
+                  stroke="#0066C5"
                   strokeWidth="1.5"
                   fill="none"
                 />
               ))}
-              <defs>
-                <linearGradient id="lp-flow-grad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#7c5cff" />
-                  <stop offset="100%" stopColor="#4f8cff" stopOpacity="0.45" />
-                </linearGradient>
-              </defs>
             </svg>
 
             {/* Conector simples (telas menores) */}
-            <div className="mx-auto my-2 h-8 w-px bg-gradient-to-b from-[#7c5cff]/70 to-[#4f8cff]/20 lg:hidden" aria-hidden="true" />
+            <div className="mx-auto my-2 h-8 w-px bg-[#0066C5]/50 lg:hidden" aria-hidden="true" />
 
             {/* Destinos */}
             <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-5">
@@ -181,7 +174,7 @@ export default function Rateio() {
             </div>
 
             {/* Barra de verificação anti-dupla-contagem */}
-            <div className="mt-6 overflow-hidden rounded-2xl border border-white/10 bg-[#070712]/80">
+            <div className="mt-6 overflow-hidden rounded-2xl border border-white/10 bg-[#051327]/80">
               <div className="grid gap-px sm:grid-cols-3">
                 <div className="p-4 text-center sm:p-5">
                   <p className="text-xs uppercase tracking-widest text-slate-500">Total geral (compras)</p>
@@ -189,7 +182,7 @@ export default function Rateio() {
                 </div>
                 <div className="p-4 text-center sm:p-5">
                   <p className="text-xs uppercase tracking-widest text-slate-500">Relatórios analíticos</p>
-                  <p className="mt-1 text-lg font-bold tabular-nums text-[#a9c4ff]">5 recortes — R$ 50,00</p>
+                  <p className="mt-1 text-lg font-bold tabular-nums text-[#9CC6F5]">5 recortes — R$ 50,00</p>
                 </div>
                 <div className="p-4 text-center sm:p-5">
                   <p className="text-xs uppercase tracking-widest text-slate-500">Soma das alocações</p>

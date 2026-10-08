@@ -99,7 +99,14 @@ function podeEditar(usuario: Usuario, compra: Compra): boolean {
 
 export function listarCompras(
   usuario: Usuario,
-  filtros: { competencia?: string; status?: string; fornecedor?: string; busca?: string; limite?: number } = {},
+  filtros: {
+    competencia?: string;
+    status?: string;
+    fornecedor?: string;
+    busca?: string;
+    setorId?: number;
+    limite?: number;
+  } = {},
 ): Compra[] {
   const where: string[] = [];
   const params: (string | number)[] = [];
@@ -124,6 +131,15 @@ export function listarCompras(
     const like = `%${filtros.busca}%`;
     params.push(like, like, like);
   }
+  if (filtros.setorId) {
+    // Um setor pode aparecer de dois jeitos: no destino da compra (c.setor_id)
+    // ou dentro do rateio (alocação). Aceitamos os dois para o filtro ser útil
+    // mesmo com compras lançadas antes do rateio ser obrigatório.
+    where.push(
+      "(c.setor_id = ? OR EXISTS (SELECT 1 FROM alocacoes a WHERE a.compra_id = c.id AND a.setor_id = ?))",
+    );
+    params.push(filtros.setorId, filtros.setorId);
+  }
   params.push(Math.min(Math.max(filtros.limite ?? 100, 1), 500));
   return banco()
     .prepare(
@@ -140,13 +156,16 @@ export function obterCompra(id: number): Compra {
   return compra!;
 }
 
+// Quem enxerga a compra: quem vê todas (perfis de gestão/auditoria) ou o próprio
+// responsável. Ratear não dá leitura: `alocacoes.editar` também pertence ao
+// comprador, que só enxerga as próprias compras (igual a `listarCompras`).
+export function podeVerCompra(usuario: Usuario, compra: Compra): boolean {
+  return pode(usuario.papel, PERMISSOES.comprasVerTodas) || compra.responsavel_id === usuario.id;
+}
+
 export function verCompra(id: number, usuario: Usuario): { compra: Compra; alocacoes: Alocacao[]; anexos: Anexo[]; eventos: unknown[] } {
   const compra = obterCompra(id);
-  const visivel =
-    pode(usuario.papel, PERMISSOES.comprasVerTodas) ||
-    compra.responsavel_id === usuario.id ||
-    pode(usuario.papel, PERMISSOES.alocacoesEditar);
-  if (!visivel) forbidden(`você não tem acesso à compra ${compra.numero}`);
+  if (!podeVerCompra(usuario, compra)) forbidden(`você não tem acesso à compra ${compra.numero}`);
   const alocacoes = listarAlocacoes(id);
   if (!pode(usuario.papel, PERMISSOES.comprasVerTodas)) {
     const coord = coordenacaoDoPapel(usuario.papel);

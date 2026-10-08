@@ -4,112 +4,10 @@
    ========================================================= */
 
 :root {
-  --lp-bg: #070712;
-  --lp-bg-soft: #0a0a14;
-  --lp-purple: #7c5cff;
-  --lp-blue: #4f8cff;
-}
-
-/* ---------- Fundo com orbs de glow animados ---------- */
-.lp-orb {
-  position: absolute;
-  border-radius: 9999px;
-  filter: blur(90px);
-  opacity: 0.35;
-  pointer-events: none;
-  will-change: transform;
-}
-
-.lp-orb-purple {
-  background: radial-gradient(
-    circle at 30% 30%,
-    rgba(124, 92, 255, 0.9),
-    rgba(124, 92, 255, 0) 70%
-  );
-}
-
-.lp-orb-blue {
-  background: radial-gradient(
-    circle at 70% 60%,
-    rgba(79, 140, 255, 0.85),
-    rgba(79, 140, 255, 0) 70%
-  );
-}
-
-@keyframes lp-float {
-  0%,
-  100% {
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-  50% {
-    transform: translate3d(0, -28px, 0) scale(1.06);
-  }
-}
-
-.lp-float-slow {
-  animation: lp-float 14s ease-in-out infinite;
-}
-
-.lp-float-slower {
-  animation: lp-float 20s ease-in-out infinite reverse;
-}
-
-/* ---------- Texto com gradiente animado ---------- */
-@keyframes lp-gradient-pan {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
-}
-
-.lp-text-gradient {
-  background: linear-gradient(
-    100deg,
-    #ffffff 0%,
-    var(--lp-purple) 35%,
-    var(--lp-blue) 60%,
-    #ffffff 100%
-  );
-  background-size: 220% 220%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  animation: lp-gradient-pan 9s ease-in-out infinite;
-}
-
-/* ---------- Badge / pill com brilho na borda ---------- */
-@keyframes lp-border-shimmer {
-  0% {
-    background-position: -160% 0;
-  }
-  100% {
-    background-position: 260% 0;
-  }
-}
-
-.lp-shimmer {
-  position: relative;
-  overflow: hidden;
-}
-
-.lp-shimmer::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    110deg,
-    transparent 40%,
-    rgba(255, 255, 255, 0.25) 50%,
-    transparent 60%
-  );
-  background-size: 220% 100%;
-  animation: lp-border-shimmer 4.5s linear infinite;
-  pointer-events: none;
+  --lp-bg: #051327;
+  --lp-bg-soft: #08182E;
+  --lp-red: #E3062F;
+  --lp-blue: #0066C5;
 }
 
 /* ---------- Cards com glow no hover ---------- */
@@ -124,27 +22,11 @@
 
 .lp-card:hover {
   transform: translateY(-4px);
-  border-color: rgba(124, 92, 255, 0.45);
+  border-color: rgba(0, 102, 197, 0.45);
   box-shadow:
-    0 0 0 1px rgba(124, 92, 255, 0.12),
-    0 18px 50px -20px rgba(124, 92, 255, 0.45),
-    0 8px 32px -12px rgba(79, 140, 255, 0.28);
-}
-
-/* Halo de glow atrás de cards destaque */
-.lp-glow-behind::before {
-  content: "";
-  position: absolute;
-  inset: -40%;
-  z-index: -1;
-  background: radial-gradient(
-    circle at 50% 50%,
-    rgba(124, 92, 255, 0.22),
-    rgba(79, 140, 255, 0.08) 45%,
-    transparent 70%
-  );
-  filter: blur(30px);
-  pointer-events: none;
+    0 0 0 1px rgba(0, 102, 197, 0.12),
+    0 18px 50px -20px rgba(0, 102, 197, 0.45),
+    0 8px 32px -12px rgba(0, 84, 166, 0.28);
 }
 
 /* ---------- Entrada on-scroll (Reveal) ---------- */
@@ -177,10 +59,10 @@
 @keyframes lp-pulse-soft {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(124, 92, 255, 0.35);
+    box-shadow: 0 0 0 0 rgba(0, 102, 197, 0.35);
   }
   50% {
-    box-shadow: 0 0 32px 6px rgba(124, 92, 255, 0.22);
+    box-shadow: 0 0 32px 6px rgba(0, 102, 197, 0.22);
   }
 }
 
@@ -204,8 +86,8 @@
 }
 
 .lp-faq details[open] {
-  border-color: rgba(124, 92, 255, 0.45);
-  background-color: rgba(124, 92, 255, 0.06);
+  border-color: rgba(0, 102, 197, 0.45);
+  background-color: rgba(0, 102, 197, 0.06);
 }
 
 .lp-faq summary {
@@ -236,11 +118,6 @@
 
 /* ---------- Movimento suave ---------- */
 @media (prefers-reduced-motion: reduce) {
-  .lp-orb,
-  .lp-float-slow,
-  .lp-float-slower,
-  .lp-text-gradient,
-  .lp-shimmer::after,
   .lp-flow-line,
   .lp-pulse {
     animation: none !important;

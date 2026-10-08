@@ -2,6 +2,8 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { formatarCentavos } from "@/lib/numerario";
 
+export { Selecao } from "./selecao";
+
 export const SUPERFICIE = "rounded-2xl border border-white/10 bg-white/[0.03]";
 export const INPUT =
   "w-full rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-indigo-400/60 focus:bg-white/[0.07]";
@@ -22,7 +24,7 @@ export function Cabecalho({
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-white">{titulo}</h1>
+        <h1 className="text-xl font-semibold tracking-tight text-white sm:text-2xl">{titulo}</h1>
         {descricao ? <p className="mt-1 max-w-2xl text-sm text-white/55">{descricao}</p> : null}
       </div>
       {acoes ? <div className="flex flex-wrap items-center gap-2">{acoes}</div> : null}
@@ -149,36 +151,6 @@ export function Area({
 
 export type Opcao = { valor: string; rotulo: string; grupo?: string };
 
-export function Selecao({
-  rotulo,
-  name,
-  opcoes,
-  defaultValor,
-  vazio,
-  required,
-}: {
-  rotulo: string;
-  name: string;
-  opcoes: Opcao[];
-  defaultValor?: string;
-  vazio?: string;
-  required?: boolean;
-}) {
-  return (
-    <label className="block">
-      <span className="mb-1.5 block text-xs font-medium text-white/60">{rotulo}</span>
-      <select name={name} defaultValue={defaultValor} required={required} className={INPUT}>
-        {vazio ? <option value="">{vazio}</option> : null}
-        {opcoes.map((o) => (
-          <option key={o.valor} value={o.valor}>
-            {o.grupo ? `${o.grupo} · ${o.rotulo}` : o.rotulo}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
-
 export function Botao({
   children,
   variante = "primario",
@@ -193,9 +165,9 @@ export function Botao({
   value?: string;
 }) {
   const classes = {
-    primario: "bg-indigo-500 text-white hover:bg-indigo-400 shadow-[0_0_24px_-6px] shadow-indigo-500/70",
+    primario: "bg-indigo-500 text-white hover:bg-indigo-400 shadow-[0_8px_22px_-12px] shadow-indigo-500/60",
     secundario: "bg-white/10 text-white hover:bg-white/15 border border-white/10",
-    perigo: "bg-rose-500/80 text-white hover:bg-rose-500",
+    perigo: "bg-rose-500 text-white hover:bg-rose-600 shadow-[0_8px_22px_-14px] shadow-rose-600/60",
     fantasma: "text-white/70 hover:text-white hover:bg-white/5",
   }[variante];
   return (
@@ -203,7 +175,7 @@ export function Botao({
       type={type}
       name={name}
       value={value}
-      className={`inline-flex items-center justify-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-medium transition ${classes}`}
+      className={`inline-flex min-h-[42px] items-center justify-center gap-1.5 rounded-xl px-3.5 py-2.5 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/50 ${classes}`}
     >
       {children}
     </button>

@@ -70,7 +70,7 @@ export default async function Dashboard({
         titulo={`Visão geral · ${nomeDoMes(competencia)}`}
         descricao="O total financeiro soma compras. Os recortes abaixo somam alocações — por isso um mesmo gasto aparece em vários recortes, mas nunca é contado duas vezes no total."
         acoes={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Link
               href={`/dashboard?mes=${deslocarMes(competencia, -1)}`}
               className="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/70 hover:bg-white/10"

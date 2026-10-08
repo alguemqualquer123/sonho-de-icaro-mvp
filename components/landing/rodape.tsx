@@ -1,3 +1,5 @@
+import { Marca } from "@/components/marca";
+
 const COLUNAS = [
   {
     titulo: "Produto",
@@ -27,19 +29,12 @@ const COLUNAS = [
 
 export default function Rodape() {
   return (
-    <footer className="relative border-t border-white/10 bg-[#0a0a14]/60">
+    <footer className="relative border-t border-white/10 bg-[#08182E]/60">
       <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
         <div className="grid gap-10 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
           <div>
             <div className="flex items-center gap-2.5">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-gradient-to-br from-[#7c5cff]/30 to-[#4f8cff]/20">
-                <svg viewBox="0 0 24 24" className="h-5 w-5 text-[#a9c4ff]" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" aria-hidden="true">
-                  <path d="M5 17c2-7 7-11 14-12-1 7-5 12-12 13" />
-                  <path d="M9 15l10-10" />
-                  <path d="M5 19l4-4" />
-                </svg>
-              </span>
-              <p className="text-base font-semibold text-white">Sonho de Ícaro</p>
+              <Marca />
             </div>
             <p className="mt-4 max-w-sm text-sm leading-relaxed text-slate-500">
               Sistema interno de gestão de despesas do cartão XP Black corporativo: uma compra, uma

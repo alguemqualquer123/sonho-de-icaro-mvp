@@ -1,16 +1,46 @@
 @import "tailwindcss";
 
 @theme inline {
-  --color-background: #070712;
-  --color-foreground: #e8e9f3;
+  --color-background: #051327;
+  --color-foreground: #eaf1fb;
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
+/* Identidade institucional: azul (#003F8F · #0054A6 · #0066C5) e vermelho
+   (#E3062F). Remapeamos as escalas que o app já usa — indigo vira o azul da
+   marca e rose vira o vermelho — para a identidade valer em todo lugar sem
+   precisar caçar classe por classe. */
+@theme {
+  --color-indigo-50: #eaf2fb;
+  --color-indigo-100: #d3e4f7;
+  --color-indigo-200: #a7c9ef;
+  --color-indigo-300: #7fb2e8;
+  --color-indigo-400: #3d8ad6;
+  --color-indigo-500: #0054a6;
+  --color-indigo-600: #004894;
+  --color-indigo-700: #003f8f;
+  --color-indigo-800: #00357a;
+  --color-indigo-900: #002a62;
+  --color-indigo-950: #001b3f;
+
+  --color-rose-50: #fdecef;
+  --color-rose-100: #fbd5db;
+  --color-rose-200: #f6a9b6;
+  --color-rose-300: #f07d91;
+  --color-rose-400: #ea4968;
+  --color-rose-500: #e3062f;
+  --color-rose-600: #c60529;
+  --color-rose-700: #a30422;
+  --color-rose-800: #7f031b;
+  --color-rose-900: #5c0213;
+  --color-rose-950: #3a010c;
+}
+
 html,
 body {
-  background: #070712;
-  color: #e8e9f3;
+  background: #051327;
+  color: #eaf1fb;
 }
 
 body {

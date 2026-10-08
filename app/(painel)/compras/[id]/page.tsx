@@ -18,23 +18,22 @@ import {
   Valor,
   Vazio,
 } from "@/components/ui";
+import { RateioModal } from "@/components/rateio-modal";
 import { exigirUsuario } from "@/lib/auth";
-import { fechamentoDaCompetencia, verCompra, type Alocacao } from "@/lib/compras";
+import { fechamentoDaCompetencia, verCompra } from "@/lib/compras";
 import { opcoesCatalogos } from "@/lib/cadastros";
-import { PERMISSOES, nomeDoPapel, pode } from "@/lib/rbac";
+import { coordenacaoDoPapel, PERMISSOES, nomeDoPapel, pode } from "@/lib/rbac";
 import { banco } from "@/lib/db";
 import { formatarCentavos } from "@/lib/numerario";
 import { dataPorExtenso } from "@/lib/datas";
 import { mensagemDe } from "@/lib/regras";
 import {
   compensarAction,
-  dividirRateioIgualAction,
   editarCompraAction,
   excluirAlocacaoAction,
   marcarLegibilidadeAction,
   removerAnexoAction,
   revisarAction,
-  salvarAlocacaoAction,
   cancelarCompraAction,
   uploadAnexoAction,
 } from "@/lib/acoes/compras";
@@ -85,86 +84,6 @@ function valorDaTrilha(linha: TrilhaLinha): string {
     }
   }
   return "";
-}
-
-function FormularioAlocacao({
-  compraId,
-  alocacao,
-  voltarPara,
-}: {
-  compraId: number;
-  alocacao: Alocacao | null;
-  voltarPara: string;
-}) {
-  const catalogos = opcoesCatalogos();
-  const editando = alocacao !== null;
-  return (
-    <form action={salvarAlocacaoAction} className="space-y-4">
-      <input type="hidden" name="compra_id" value={compraId} />
-      {editando ? <input type="hidden" name="id" value={alocacao!.id} /> : null}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Selecao
-          rotulo="Categoria"
-          name="categoria_id"
-          required
-          defaultValor={alocacao ? String(alocacao.categoria_id) : undefined}
-          opcoes={catalogos.categorias.map((c) => ({ valor: String(c.id), rotulo: c.nome }))}
-        />
-        <Selecao
-          rotulo="Setor"
-          name="setor_id"
-          required
-          defaultValor={alocacao ? String(alocacao.setor_id) : undefined}
-          opcoes={catalogos.setores.map((s) => ({ valor: String(s.id), rotulo: s.nome }))}
-        />
-        <Selecao
-          rotulo="Turma (opcional)"
-          name="turma_id"
-          vazio="sem turma vinculada"
-          defaultValor={alocacao?.turma_id ? String(alocacao.turma_id) : ""}
-          opcoes={catalogos.turmas.map((t) => ({
-            valor: String(t.id),
-            rotulo: `${t.codigo} · ${t.nome}`,
-            grupo: t.coordenacao,
-          }))}
-        />
-        <Selecao
-          rotulo="Centro de custo (opcional)"
-          name="centro_custo_id"
-          vazio="usar o centro do setor"
-          defaultValor={alocacao?.centro_custo_id ? String(alocacao.centro_custo_id) : ""}
-          opcoes={catalogos.centrosCusto.map((c) => ({ valor: String(c.id), rotulo: c.nome, grupo: c.tipo }))}
-        />
-        <Selecao
-          rotulo="Projeto (opcional)"
-          name="projeto_id"
-          vazio="sem projeto"
-          defaultValor={alocacao?.projeto_id ? String(alocacao.projeto_id) : ""}
-          opcoes={catalogos.projetos.map((p) => ({ valor: String(p.id), rotulo: p.nome }))}
-        />
-        <Campo
-          rotulo="Valor desta parte"
-          name="valor"
-          required
-          placeholder="1.234,56"
-          defaultValue={alocacao ? apenasCentavosDecimais(alocacao.valor_centavos) : undefined}
-          hint="parte do valor JÁ LANÇADO; somar alocações não aumenta o total da compra"
-        />
-      </div>
-      <Area rotulo="Observação" name="observacao" rows={2} defaultValue={alocacao?.observacao || undefined} placeholder="justificativa da fatia, aluno/atividade beneficiada" />
-      {editando ? (
-        <Campo rotulo="Motivo da correção" name="motivo" placeholder="obrigatório fora do rascunho" />
-      ) : null}
-      <div className="flex flex-wrap items-center gap-3">
-        <Botao>{editando ? "Salvar alocação" : "Adicionar alocação"}</Botao>
-        {editando ? (
-          <Link href={voltarPara} className="text-xs text-white/50 hover:text-white">
-            cancelar edição
-          </Link>
-        ) : null}
-      </div>
-    </form>
-  );
 }
 
 function apenasCentavosDecimais(centavos: number): string {
@@ -226,6 +145,18 @@ export default async function CompraDetalhe({
   const catalogos = opcoesCatalogos();
   const ccNome = new Map(catalogos.centrosCusto.map((c) => [c.id, c.nome]));
   const projetoNome = new Map(catalogos.projetos.map((p) => [p.id, p.nome]));
+
+  // A categoria "Outros" é o padrão silencioso: o formulário simplificado não
+  // pergunta categoria, mas o banco continua exigindo uma.
+  const categoriaPadraoId = catalogos.categorias.find((c) => c.codigo === "CAT-OUT")?.id ?? catalogos.categorias[0]?.id ?? 0;
+  const exigirTurma = coordenacaoDoPapel(papel) !== "";
+  const catalogoRateio = {
+    categorias: catalogos.categorias.map((c) => ({ id: c.id, nome: c.nome })),
+    setores: catalogos.setores.map((s) => ({ id: s.id, nome: s.nome })),
+    turmas: catalogos.turmas.map((t) => ({ id: t.id, codigo: t.codigo, nome: t.nome, coordenacao: t.coordenacao })),
+    centrosCusto: catalogos.centrosCusto.map((c) => ({ id: c.id, nome: c.nome, tipo: c.tipo })),
+    projetos: catalogos.projetos.map((p) => ({ id: p.id, nome: p.nome })),
+  };
 
   const alocacaoEditando = query.alocacao
     ? alocacoes.find((a) => a.id === Number(query.alocacao)) ?? null
@@ -303,21 +234,24 @@ export default async function CompraDetalhe({
 
         <div className="mt-4">
           <Tabela
-            colunas={["Categoria", "Setor", "Turma / coordenação", "Centro de custo", "Projeto", "Valor", "Observação", "Ações"]}
+            colunas={["Destino", "Valor", "Observação", "Ações"]}
             vazio="Nenhuma alocação lançada: o valor inteiro está como saldo a classificar."
-            linhas={alocacoes.map((a) => [
-              <span key="c">{a.categoria_nome}</span>,
-              <span key="s">{a.setor_nome}</span>,
-              <span key="t">
-                {a.turma_nome ?? "—"}
-                {a.coordenacao_codigo ? <span className="ml-1 text-[11px] text-white/40">({a.coordenacao_codigo})</span> : null}
-              </span>,
-              <span key="cc">{(a.centro_custo_id ? ccNome.get(a.centro_custo_id) : null) ?? "—"}</span>,
-              <span key="pj">{(a.projeto_id ? projetoNome.get(a.projeto_id) : null) ?? "—"}</span>,
+            linhas={alocacoes.map((a) => {
+              const extras = [
+                a.categoria_id !== categoriaPadraoId ? a.categoria_nome : null,
+                a.turma_nome,
+                a.centro_custo_id ? ccNome.get(a.centro_custo_id) : null,
+                a.projeto_id ? projetoNome.get(a.projeto_id) : null,
+              ].filter((x): x is string => Boolean(x));
+              return [
+              <div key="d">
+                <span className="font-medium text-white">{a.setor_nome}</span>
+                {extras.length ? <p className="mt-0.5 text-[11px] text-white/40">{extras.join(" · ")}</p> : null}
+              </div>,
               <span key="v" className="whitespace-nowrap tabular-nums text-white">
                 <Valor centavos={a.valor_centavos} negativoPermitido={false} />
               </span>,
-              <span key="o" className="max-w-[200px] text-xs text-white/50">
+              <span key="o" className="max-w-[240px] text-xs text-white/50">
                 {a.observacao || "—"}
               </span>,
               <div key="x" className="flex flex-wrap items-center gap-1.5">
@@ -337,7 +271,8 @@ export default async function CompraDetalhe({
                   <span className="text-[11px] text-white/35">{a.id}</span>
                 )}
               </div>,
-            ])}
+              ];
+            })}
           />
           <p className="mt-2 text-xs text-white/55">
             Total do rateio: <span className="tabular-nums font-semibold text-white">{formatarCentavos(rateado)}</span> — a
@@ -346,52 +281,47 @@ export default async function CompraDetalhe({
         </div>
 
         {podeRatear && !tudoTravado ? (
-          <div className="mt-5 grid gap-6 lg:grid-cols-2">
-            <div className={`${alocacaoEditando ? "rounded-xl border border-indigo-400/40 bg-indigo-500/10 p-4" : "rounded-xl border border-white/10 bg-white/[0.02] p-4"}`}>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-white/55">
-                {alocacaoEditando ? `Editando alocação ${alocacaoEditando.id}` : "Nova alocação"}
-              </h3>
-              <FormularioAlocacao compraId={compra.id} alocacao={alocacaoEditando} voltarPara={`/compras/${compra.id}`} />
-            </div>
-            <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-white/55">Repartir o saldo igualmente</h3>
-              <p className="mb-3 text-[11px] text-white/45">
-                Cria N alocações de mesmo valor somando exatamente o saldo restante ({formatarCentavos(saldo)}) — útil
-                quando a despesa se divide entre várias turmas ou unidades. Se o rateio já estiver completo, não há
-                saldo a repartir.
-              </p>
-              <form action={dividirRateioIgualAction} className="space-y-4">
-                <input type="hidden" name="compra_id" value={compra.id} />
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Selecao
-                    rotulo="Categoria comum"
-                    name="categoria_id"
-                    required
-                    opcoes={catalogos.categorias.map((c) => ({ valor: String(c.id), rotulo: c.nome }))}
-                  />
-                  <Selecao
-                    rotulo="Setor comum"
-                    name="setor_id"
-                    required
-                    opcoes={catalogos.setores.map((s) => ({ valor: String(s.id), rotulo: s.nome }))}
-                  />
-                  <Campo rotulo="Quantidade de partes" name="partes" type="number" required min={1} placeholder="3" hint="o saldo é dividido em partes iguais (centavos sobram para as primeiras)" />
-                  <Selecao
-                    rotulo="Turma (opcional)"
-                    name="turma_id"
-                    vazio="sem turma"
-                    opcoes={catalogos.turmas.map((t) => ({ valor: String(t.id), rotulo: `${t.codigo} · ${t.nome}`, grupo: t.coordenacao }))}
-                  />
-                </div>
-                <Botao variante="secundario">Repartir o saldo igualmente</Botao>
-              </form>
-            </div>
+          <div className="mt-5 flex flex-wrap items-center gap-3">
+            <RateioModal
+              compraId={compra.id}
+              catalogo={catalogoRateio}
+              categoriaPadraoId={categoriaPadraoId}
+              exigirTurma={exigirTurma}
+              saldo={saldo}
+            />
+            <span className="text-[11px] text-white/45">
+              {saldo > 0
+                ? `saldo a classificar: ${formatarCentavos(saldo)}`
+                : "rateio completo: não há saldo a classificar"}
+            </span>
           </div>
         ) : (
           <p className="mt-4 text-xs text-white/45">
             {tudoTravado ? "Escrita bloqueada (mês fechado, compra cancelada ou aprovada travada)." : "seu perfil não pode alterar o rateio desta compra."}
           </p>
         )}
+
+        {alocacaoEditando && podeRatear && !tudoTravado ? (
+          <RateioModal
+            compraId={compra.id}
+            catalogo={catalogoRateio}
+            categoriaPadraoId={categoriaPadraoId}
+            exigirTurma={exigirTurma}
+            saldo={saldo}
+            abertoInicial
+            limparUrlAoFechar
+            alocacao={{
+              id: alocacaoEditando.id,
+              categoria_id: alocacaoEditando.categoria_id,
+              setor_id: alocacaoEditando.setor_id,
+              turma_id: alocacaoEditando.turma_id,
+              centro_custo_id: alocacaoEditando.centro_custo_id,
+              projeto_id: alocacaoEditando.projeto_id,
+              valor_centavos: alocacaoEditando.valor_centavos,
+              observacao: alocacaoEditando.observacao,
+            }}
+          />
+        ) : null}
       </Painel>
 
       {/* ------------------------------------------- COMPROVANTES ------- */}

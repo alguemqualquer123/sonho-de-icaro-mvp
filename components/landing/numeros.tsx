@@ -38,12 +38,12 @@ export default function Numeros() {
     <section id="numeros" className="lp-section relative py-16 sm:py-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <Reveal>
-          <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-white/[0.06] to-white/[0.02] p-6 backdrop-blur-xl sm:p-10">
+          <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-xl sm:p-10">
             <div className="grid grid-cols-2 gap-x-6 gap-y-8 sm:grid-cols-3 lg:grid-cols-6">
               {NUMEROS.map((n) => (
                 <div key={n.rotulo} className="text-center">
                   <p className="text-3xl font-bold tabular-nums text-white sm:text-4xl lg:text-5xl">
-                    <span className="lp-text-gradient">{n.valor}</span>
+                    <span className="text-white">{n.valor}</span>
                   </p>
                   <p className="mt-2 text-sm font-semibold text-slate-200">{n.rotulo}</p>
                   <p className="mt-1 text-xs leading-relaxed text-slate-500">{n.detalhe}</p>

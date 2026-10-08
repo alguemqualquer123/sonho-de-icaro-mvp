@@ -2,9 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { NextResponse, type NextRequest } from "next/server";
 import {UPLOADS_DIR } from "@/lib/db";
-import { obterAnexo, obterCompra } from "@/lib/compras";
+import { obterAnexo, obterCompra, podeVerCompra } from "@/lib/compras";
 import { usuarioAtual } from "@/lib/auth";
-import { PERMISSOES, pode } from "@/lib/rbac";
 import { mensagemDe } from "@/lib/regras";
 
 // Download autenticado: o arquivo nunca é servido por URL pública nem pré-assinada.
@@ -15,11 +14,7 @@ export async function GET(_request: NextRequest, contexto: { params: Promise<{ i
     const { id } = await contexto.params;
     const anexo = obterAnexo(Number(id));
     const compra = obterCompra(anexo.compra_id);
-    const visivel =
-      pode(usuario.papel, PERMISSOES.comprasVerTodas) ||
-      compra.responsavel_id === usuario.id ||
-      pode(usuario.papel, PERMISSOES.alocacoesEditar);
-    if (!visivel) return NextResponse.json({ erro: "sem permissão" }, { status: 403 });
+    if (!podeVerCompra(usuario, compra)) return NextResponse.json({ erro: "sem permissão" }, { status: 403 });
 
     const absoluto = path.join(UPLOADS_DIR, path.basename(anexo.caminho));
     if (!fs.existsSync(absoluto)) return NextResponse.json({ erro: "arquivo ausente no storage" }, { status: 410 });

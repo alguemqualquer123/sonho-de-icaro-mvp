@@ -13,7 +13,7 @@ import Rodape from "./rodape";
 
 export default function Landing() {
   return (
-    <div className="min-h-screen bg-[#070712] font-[family-name:var(--font-geist-sans)] text-white antialiased [color-scheme:dark]">
+    <div className="min-h-screen bg-[#051327] font-[family-name:var(--font-geist-sans)] text-white antialiased [color-scheme:dark]">
       <Header />
       <main>
         <Hero />

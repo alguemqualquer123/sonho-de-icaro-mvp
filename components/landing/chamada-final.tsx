@@ -4,12 +4,11 @@ import { IconCheck } from "./icons";
 export default function ChamadaFinal() {
   return (
     <section id="comecar" className="lp-section relative overflow-hidden py-20 sm:py-28">
-      <div className="lp-orb lp-orb-purple lp-float-slow left-1/2 top-1/2 h-[520px] w-[520px] -translate-y-1/2" aria-hidden="true" />
 
       <div className="relative mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
         <Reveal>
           <h2 className="text-3xl font-bold leading-tight tracking-tight text-white sm:text-4xl lg:text-5xl">
-            Chega de planilha que <span className="lp-text-gradient">duplica despesa.</span>
+            Chega de planilha que <span className="text-white">duplica despesa.</span>
           </h2>
         </Reveal>
         <Reveal delay={120}>
@@ -22,7 +21,7 @@ export default function ChamadaFinal() {
           <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <a
               href="/registro"
-              className="lp-shimmer w-full rounded-2xl bg-gradient-to-r from-[#7c5cff] to-[#4f8cff] px-8 py-4 text-base font-semibold text-white shadow-[0_16px_48px_-16px_rgba(124,92,255,0.8)] transition-transform hover:scale-[1.03] sm:w-auto"
+              className="w-full rounded-2xl bg-[#0054A6] hover:bg-[#0066C5] px-8 py-4 text-base font-semibold text-white shadow-[0_16px_48px_-16px_rgba(0,84,166,0.8)] transition-transform hover:scale-[1.03] sm:w-auto"
             >
               Criar conta
             </a>
@@ -37,13 +36,13 @@ export default function ChamadaFinal() {
         <Reveal delay={300}>
           <ul className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-slate-500 sm:text-sm">
             <li className="flex items-center gap-1.5">
-              <IconCheck className="h-4 w-4 text-[#7c5cff]" /> Fechamento mensal com trava
+              <IconCheck className="h-4 w-4 text-[#0066C5]" /> Fechamento mensal com trava
             </li>
             <li className="flex items-center gap-1.5">
-              <IconCheck className="h-4 w-4 text-[#7c5cff]" /> Conciliação com a fatura
+              <IconCheck className="h-4 w-4 text-[#0066C5]" /> Conciliação com a fatura
             </li>
             <li className="flex items-center gap-1.5">
-              <IconCheck className="h-4 w-4 text-[#7c5cff]" /> Auditoria de cada alteração
+              <IconCheck className="h-4 w-4 text-[#0066C5]" /> Auditoria de cada alteração
             </li>
           </ul>
         </Reveal>

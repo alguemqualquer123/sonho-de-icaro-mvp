@@ -40,7 +40,7 @@ export default function Faq() {
       <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
         <div className="text-center">
           <Reveal>
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium uppercase tracking-widest text-[#a9c4ff]">
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium uppercase tracking-widest text-[#9CC6F5]">
               Dúvidas que o financeiro sempre tem
             </span>
           </Reveal>
@@ -59,7 +59,7 @@ export default function Faq() {
                   <span className="text-sm font-semibold text-white sm:text-base">
                     {item.pergunta}
                   </span>
-                  <IconPlus className="lp-faq-chevron h-4 w-4 shrink-0 rotate-45 text-[#a9c4ff]" />
+                  <IconPlus className="lp-faq-chevron h-4 w-4 shrink-0 rotate-45 text-[#9CC6F5]" />
                 </summary>
                 <p className="px-5 pb-5 text-sm leading-relaxed text-slate-400 sm:px-6 sm:pb-6">
                   {item.resposta}

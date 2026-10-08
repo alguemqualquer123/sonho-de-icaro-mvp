@@ -18,7 +18,9 @@ export default function Nav({ itens, usuario }: { itens: ItemNav[]; usuario: { n
                 key={item.href}
                 href={item.href}
                 className={`block rounded-xl px-3 py-2 text-sm transition ${
-                  ativo ? "bg-indigo-500/15 font-medium text-indigo-100" : "text-white/60 hover:bg-white/5 hover:text-white"
+                  ativo
+                    ? "bg-indigo-500/20 font-medium text-indigo-100"
+                    : "text-white/60 hover:bg-white/5 hover:text-white"
                 }`}
               >
                 {item.rotulo}
@@ -40,7 +42,7 @@ export default function Nav({ itens, usuario }: { itens: ItemNav[]; usuario: { n
               key={item.href}
               href={item.href}
               className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs transition ${
-                ativo ? "bg-indigo-500/20 text-indigo-100" : "text-white/55 hover:bg-white/5"
+                ativo ? "bg-indigo-500 text-white" : "text-white/55 hover:bg-white/5"
               }`}
             >
               {item.rotulo}

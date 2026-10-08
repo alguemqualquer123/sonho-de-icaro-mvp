@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import Nav from "@/components/nav";
+import { Marca } from "@/components/marca";
 import { exigirUsuario } from "@/lib/auth";
 import { PERMISSOES, pode, nomeDoPapel } from "@/lib/rbac";
 import { sairAction } from "@/lib/acoes/auth";
@@ -20,19 +21,16 @@ export default async function LayoutPainel({ children }: { children: ReactNode }
     .map(({ href, rotulo }) => ({ href, rotulo }));
 
   return (
-    <div className="min-h-screen bg-[#070712]">
-      <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute -left-40 -top-40 h-[380px] w-[380px] rounded-full bg-indigo-700/15 blur-[120px]" />
-        <div className="absolute right-0 top-1/3 h-[320px] w-[320px] rounded-full bg-fuchsia-700/10 blur-[120px]" />
-      </div>
-      <header className="sticky top-0 z-30 border-b border-white/10 bg-[#070712]/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3">
-          <Link href="/dashboard" className="flex items-center gap-2.5">
-            <span className="grid h-8 w-8 place-items-center rounded-xl bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-[11px] font-bold text-white shadow-[0_0_20px_-4px] shadow-indigo-500/80">
-              SI
+    <div className="min-h-screen bg-[#051327]">
+      <header className="sticky top-0 z-30 border-b border-white/10 bg-[#051327]/90 backdrop-blur">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-3 py-3 sm:px-4">
+          <Link href="/dashboard" className="flex items-center gap-3">
+            <Marca />
+            <span className="hidden border-l border-white/10 pl-3 text-xs text-white/45 sm:inline">
+              cartão XP Black
+              <br />
+              controle de compras
             </span>
-            <span className="text-sm font-semibold tracking-tight text-white">Sonho de Ícaro</span>
-            <span className="hidden text-xs text-white/35 sm:inline">cartão XP Black</span>
           </Link>
           <div className="flex items-center gap-3">
             <div className="hidden text-right sm:block">
@@ -49,9 +47,10 @@ export default async function LayoutPainel({ children }: { children: ReactNode }
             </form>
           </div>
         </div>
+        <div className="h-px w-full bg-indigo-500/40" aria-hidden="true" />
       </header>
 
-      <div className="relative mx-auto grid max-w-7xl gap-8 px-4 py-6 lg:grid-cols-[190px_1fr]">
+      <div className="relative mx-auto grid max-w-7xl gap-6 px-3 py-5 sm:gap-8 sm:px-4 sm:py-6 lg:grid-cols-[190px_1fr]">
         <aside className="lg:sticky lg:top-20 lg:self-start">
           <Nav itens={itens} usuario={{ nome: usuario.nome, papel: nomeDoPapel(usuario.papel) }} />
         </aside>
