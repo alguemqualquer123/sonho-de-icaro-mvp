@@ -18,9 +18,10 @@ export const DATA_DIR = process.env.DATA_DIR
   : process.env.VERCEL
     ? path.join("/tmp", "sonho-data")
     : path.join(process.cwd(), "data");
-// Comprovantes: fotos vão para o CDN do FiveManage (ver lib/fivemanage.ts);
-// PDF e o fallback sem chave ficam no filesystem local. Na Vercel o disco é
-// efêmero: o upload funciona durante a instância, mas o recomendado é manter
+// Comprovantes: imagens e PDFs vão para o CDN do FiveManage
+// (ver lib/fivemanage.ts); nada é salvo em disco local. UPLOADS_DIR segue
+// existindo só para leitura legada e para o fallback em /tmp na Vercel.
+// Na Vercel o disco é efêmero: o recomendado é manter
 // FIVEMANAGE_API_KEY configurado.
 export const UPLOADS_DIR = path.join(DATA_DIR, "uploads");
 

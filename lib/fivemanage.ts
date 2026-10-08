@@ -1,8 +1,8 @@
 const BASE = "https://api.fivemanage.com/api/v3";
 
-// Comprovantes (fotos) vão para o CDN do FiveManage; PDF continua em disco
-// local e o disco local é fallback se a API falhar. A chave vive em
-// FIVEMANAGE_API_KEY (.env.local, fora do git).
+// Comprovantes (imagens e PDFs) vão para o CDN do FiveManage; nada é salvo
+// em disco local. A chave vive em FIVEMANAGE_API_KEY (Vercel env ou .env.local,
+// fora do git).
 
 export function chaveFiveManage(): string {
   const v = process.env.FIVEMANAGE_API_KEY;
@@ -26,7 +26,7 @@ export async function enviarArquivoFiveManage(entrada: {
   mime: string;
 }): Promise<ArquivoRemoto> {
   const chave = chaveFiveManage();
-  if (!chave) throw new Error("FiveManage: defina FIVEMANAGE_API_KEY no .env.local");
+  if (!chave) throw new Error("FiveManage: defina FIVEMANAGE_API_KEY nas Environment Variables da Vercel (ou no .env.local)");
   const fd = new FormData();
   fd.append("file", new Blob([new Uint8Array(entrada.buffer)], { type: entrada.mime }), entrada.nome);
   fd.append("filename", entrada.nome);

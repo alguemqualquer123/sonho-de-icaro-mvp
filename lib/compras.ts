@@ -638,37 +638,24 @@ export async function salvarAnexo(
   const buffer = Buffer.from(await arquivo.arrayBuffer());
   if (buffer.byteLength === 0) invalido("o arquivo está vazio");
   if (buffer.byteLength > LIMITE_ANEXO_BYTES) invalido("o arquivo excede 10 MB");
-  // Fotos vão para o CDN do FiveManage; PDF fica em disco e o disco também
-  // é o fallback se a API falhar — o upload nunca quebra por causa do CDN.
-  let caminho = "";
+  // Todos os comprovantes (imagens e PDFs) sobem para o CDN do FiveManage;
+  // nada é salvo em disco local. Sem chave ou com falha no upload, o envio
+  // é recusado com mensagem clara em vez de cair para o disco.
+  if (!temFiveManage()) {
+    invalido("comprovantes exigem FiveManage: defina FIVEMANAGE_API_KEY nas Environment Variables da Vercel (ou no .env.local)");
+  }
+  const nomeEnvio = `compra-${compra.id}-${crypto.randomBytes(8).toString("hex")}.${ext}`;
   let remotoId = "";
   let remotoUrl = "";
-  let destino: "fivemanager" | "local" = "local";
-  const nomeEnvio = `compra-${compra.id}-${crypto.randomBytes(8).toString("hex")}.${ext}`;
-  if (arquivo.type !== "application/pdf" && temFiveManage()) {
-    try {
-      const remoto = await enviarArquivoFiveManage({ buffer, nome: nomeEnvio, mime: arquivo.type });
-      remotoId = remoto.id;
-      remotoUrl = remoto.url;
-      caminho = `fivemanager:${remoto.id}`;
-      destino = "fivemanager";
-    } catch {
-      // cai para o disco local abaixo
-    }
+  try {
+    const remoto = await enviarArquivoFiveManage({ buffer, nome: nomeEnvio, mime: arquivo.type });
+    remotoId = remoto.id;
+    remotoUrl = remoto.url;
+  } catch (erro) {
+    invalido(erro instanceof Error ? erro.message : "falha ao enviar o comprovante para o FiveManage");
   }
-  if (destino === "local") {
-    caminho = `anexo-${crypto.randomBytes(12).toString("hex")}.${ext}`;
-    try {
-      fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-    } catch {
-      // disco read-only (Vercel sem /tmp): o write abaixo vai falhar com msg clara
-    }
-    try {
-      fs.writeFileSync(path.join(UPLOADS_DIR, caminho), buffer);
-    } catch {
-      invalido("não foi possível salvar o comprovante em disco (ambiente efêmero); configure FIVEMANAGE_API_KEY para fotos ou tente de novo");
-    }
-  }
+  const caminho = `fivemanager:${remotoId}`;
+  const destino = "fivemanager" as const;
   return banco().transaction(async () => {
     const r = await banco().run(
       "INSERT INTO anexos(compra_id, nome_arquivo, caminho, mime, tamanho_bytes, remoto_id, remoto_url, criado_por, criado_em) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
