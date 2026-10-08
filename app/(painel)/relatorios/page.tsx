@@ -114,8 +114,10 @@ export default async function RelatoriosPage({
     );
   }
 
-  const tabela = gerarRelatorio(tipo, usuario, competencia);
-  const resumo = resumoMensal(usuario, competencia);
+  const [tabela, resumo] = await Promise.all([
+    gerarRelatorio(tipo, usuario, competencia),
+    resumoMensal(usuario, competencia),
+  ]);
   const indiceTotal = COLUNA_TOTAL[tipo];
 
   const corpo: ReactNode[][] = tabela.linhas.map((linha) => linha.map((celula) => String(celula)));

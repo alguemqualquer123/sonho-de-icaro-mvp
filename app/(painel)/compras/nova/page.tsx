@@ -29,7 +29,7 @@ export default async function NovaCompraPage({
     );
   }
 
-  const catalogos = opcoesCatalogos();
+  const catalogos = await opcoesCatalogos();
 
   return (
     <div>
@@ -50,7 +50,7 @@ export default async function NovaCompraPage({
         <FormNovaCompra
           usuarioId={usuario.id}
           dataInicial={hoje()}
-          fornecedores={catalogos.fornecedores.map((f) => f.nome)}
+          fornecedores={catalogos.fornecedores.map((f: any) => f.nome)}
           temErro={Boolean(params.erro)}
         />
       </Painel>

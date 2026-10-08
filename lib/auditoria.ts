@@ -13,14 +13,12 @@ export type EventoTrilha = {
 };
 
 // A trilha é apêndice-only: nada aqui atualiza ou apaga registros anteriores.
-export function registrarTrilha(evento: EventoTrilha) {
-  banco()
-    .prepare(
-      `INSERT INTO trilha_auditoria
-        (usuario_id, usuario_nome, entidade, entidade_id, acao, antes, depois, motivo, ip, criado_em)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
-    .run(
+export async function registrarTrilha(evento: EventoTrilha) {
+  await banco().run(
+    `INSERT INTO trilha_auditoria
+      (usuario_id, usuario_nome, entidade, entidade_id, acao, antes, depois, motivo, ip, criado_em)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
       evento.usuario?.id ?? null,
       evento.usuario?.nome ?? "sistema",
       evento.entidade,
@@ -31,7 +29,8 @@ export function registrarTrilha(evento: EventoTrilha) {
       evento.motivo ?? "",
       evento.ip ?? "",
       agora(),
-    );
+    ],
+  );
 }
 
 export type LinhaTrilha = {
@@ -47,7 +46,7 @@ export type LinhaTrilha = {
   depois: string | null;
 };
 
-export function listarTrilha(limite = 200, entidade = "", usuarioId = 0): LinhaTrilha[] {
+export async function listarTrilha(limite = 200, entidade = "", usuarioId = 0): Promise<LinhaTrilha[]> {
   const filtros: string[] = [];
   const params: (string | number)[] = [];
   if (entidade) {
@@ -59,12 +58,11 @@ export function listarTrilha(limite = 200, entidade = "", usuarioId = 0): LinhaT
     params.push(usuarioId);
   }
   params.push(Math.min(Math.max(limite, 1), 1000));
-  return banco()
-    .prepare(
-      `SELECT id, usuario_nome, entidade, entidade_id, acao, motivo, ip, criado_em, antes, depois
-         FROM trilha_auditoria
-         ${filtros.length ? `WHERE ${filtros.join(" AND ")}` : ""}
-        ORDER BY id DESC LIMIT ?`,
-    )
-    .all(...params) as LinhaTrilha[];
+  return banco().all<LinhaTrilha>(
+    `SELECT id, usuario_nome, entidade, entidade_id, acao, motivo, ip, criado_em, antes, depois
+       FROM trilha_auditoria
+       ${filtros.length ? `WHERE ${filtros.join(" AND ")}` : ""}
+      ORDER BY id DESC LIMIT ?`,
+    params,
+  );
 }

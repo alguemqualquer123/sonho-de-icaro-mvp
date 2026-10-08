@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     if (!TIPOS_RELATORIO.some((t) => t.tipo === tipo)) {
       return NextResponse.json({ erro: "relatório desconhecido" }, { status: 400 });
     }
-    const tabela = gerarRelatorio(tipo, usuario, mes);
+    const tabela = await gerarRelatorio(tipo, usuario, mes);
     const nome = `${tipo}${mes ? `-${mes}` : ""}.csv`;
     return new NextResponse(paraCsv(tabela), {
       headers: {

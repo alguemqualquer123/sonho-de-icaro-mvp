@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Aviso, Botao, Campo, Cabecalho, Painel, Recado, Selecao, Selo } from "@/components/ui";
+import { Aviso, Botao, Campo, Cabecalho, Painel, Recado, Selo } from "@/components/ui";
+import { Selecao } from "@/components/selecao";
 import { exigirUsuario } from "@/lib/auth";
 import { PAPEIS, PERMISSOES, nomeDoPapel, pode, type Permissao } from "@/lib/rbac";
 import { listarUsuarios, resumoUsuarios } from "@/lib/usuarios";
@@ -45,8 +46,7 @@ export default async function UsuariosPage({
     );
   }
 
-  const linhas = listarUsuarios();
-  const resumo = resumoUsuarios();
+  const [linhas, resumo] = await Promise.all([listarUsuarios(), resumoUsuarios()]);
 
   return (
     <div>

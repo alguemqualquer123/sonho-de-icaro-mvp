@@ -12,11 +12,11 @@ import {
   Numero,
   Painel,
   Recado,
-  Selecao,
   Selo,
   Tabela,
   Valor,
 } from "@/components/ui";
+import { Selecao } from "@/components/selecao";
 import { exigirUsuario } from "@/lib/auth";
 import { fechamentoDaCompetencia, listarCompras } from "@/lib/compras";
 import {
@@ -152,10 +152,16 @@ export default async function ConciliacaoPage({
     );
   }
 
-  const fatura = obterFatura(competencia);
-  const itens = fatura ? listarItens(fatura.id) : [];
-  const candidatos = fatura ? candidatosPareamento(competencia) : [];
-  const compras = listarCompras(usuario, { competencia, limite: 500 });
+  const [fatura, compras, divergencia, fechamento, fechamentos, faturasCadastradas] = await Promise.all([
+    obterFatura(competencia),
+    listarCompras(usuario, { competencia, limite: 500 }),
+    divergencias(competencia),
+    fechamentoDaCompetencia(competencia),
+    situacaoFechamento(),
+    listarFaturas(),
+  ]);
+  const itens = fatura ? await listarItens(fatura.id) : [];
+  const candidatos = fatura ? await candidatosPareamento(competencia) : [];
   const comprasAtivas = compras.filter((c) => c.status !== "cancelada");
   const totalLancado = comprasAtivas.reduce((acc, c) => acc + c.valor_centavos, 0);
   const totalFatura = fatura?.total_centavos ?? 0;
@@ -163,11 +169,8 @@ export default async function ConciliacaoPage({
   const pareados = itens.filter((i) => i.compra_id !== null).length;
   const livres = itens.length - pareados;
   const percentualPareado = itens.length > 0 ? Math.round((pareados / itens.length) * 1000) / 10 : 0;
-  const { itensNaoPareados, ausentesNaFatura } = divergencias(competencia);
-  const fechamento = fechamentoDaCompetencia(competencia);
-  const fechamentos = situacaoFechamento();
+  const { itensNaoPareados, ausentesNaFatura } = divergencia;
   const registroAtual = fechamentos.find((r) => r.competencia === competencia);
-  const faturasCadastradas = listarFaturas();
   const mesFechado = Boolean(fechamento && !fechamento.reaberto_em);
   const mesReaberto = Boolean(fechamento?.reaberto_em);
   const temDivergencia = itensNaoPareados.length > 0 || ausentesNaFatura.length > 0;

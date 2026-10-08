@@ -59,8 +59,11 @@ export default async function Dashboard({
   const usuario = await exigirUsuario();
   const params = await searchParams;
   const competencia = normalizarMes(params.mes);
-  const resumo = resumoMensal(usuario, competencia);
-  const pendencias = listarCompras(usuario, { competencia, limite: 200 }).filter(
+  const [resumo, compras] = await Promise.all([
+    resumoMensal(usuario, competencia),
+    listarCompras(usuario, { competencia, limite: 200 }),
+  ]);
+  const pendencias = compras.filter(
     (c) => c.status !== "cancelada" && ((c.saldo_centavos ?? 0) > 0 || (c.total_anexos ?? 0) === 0),
   );
 

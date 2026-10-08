@@ -12,13 +12,13 @@ import {
   Numero,
   Painel,
   Recado,
-  Selecao,
   Selo,
   Tabela,
   Valor,
   Vazio,
 } from "@/components/ui";
 import { RateioModal } from "@/components/rateio-modal";
+import { Selecao } from "@/components/selecao";
 import { exigirUsuario } from "@/lib/auth";
 import { fechamentoDaCompetencia, verCompra } from "@/lib/compras";
 import { opcoesCatalogos } from "@/lib/cadastros";
@@ -86,6 +86,7 @@ function valorDaTrilha(linha: TrilhaLinha): string {
   return "";
 }
 
+
 function apenasCentavosDecimais(centavos: number): string {
   return (centavos / 100).toFixed(2).replace(".", ",");
 }
@@ -110,9 +111,9 @@ export default async function CompraDetalhe({
     );
   }
 
-  let dados: ReturnType<typeof verCompra>;
+  let dados: Awaited<ReturnType<typeof verCompra>>;
   try {
-    dados = verCompra(compraId, usuario);
+    dados = await verCompra(compraId, usuario);
   } catch (erro) {
     return (
       <div>
@@ -132,7 +133,7 @@ export default async function CompraDetalhe({
   const podeCancelar = pode(papel, PERMISSOES.comprasCancelar);
   const podeRevisar = pode(papel, PERMISSOES.revisaoGerir);
 
-  const fechamento = fechamentoDaCompetencia(compra.competencia);
+  const fechamento = await fechamentoDaCompetencia(compra.competencia);
   const mesFechado = Boolean(fechamento && !fechamento.reaberto_em);
   const compraCancelada = compra.status === "cancelada";
   const aprovadaTravada = compra.status === "aprovada" && !podeRevisar;
@@ -142,20 +143,20 @@ export default async function CompraDetalhe({
   const saldo = compra.saldo_centavos ?? 0;
   const percentual = compra.valor_centavos > 0 ? Math.round((rateado / compra.valor_centavos) * 1000) / 10 : 0;
 
-  const catalogos = opcoesCatalogos();
-  const ccNome = new Map(catalogos.centrosCusto.map((c) => [c.id, c.nome]));
-  const projetoNome = new Map(catalogos.projetos.map((p) => [p.id, p.nome]));
+  const catalogos = await opcoesCatalogos();
+  const ccNome = new Map(catalogos.centrosCusto.map((c: any) => [c.id, c.nome]));
+  const projetoNome = new Map(catalogos.projetos.map((p: any) => [p.id, p.nome]));
 
   // A categoria "Outros" é o padrão silencioso: o formulário simplificado não
   // pergunta categoria, mas o banco continua exigindo uma.
-  const categoriaPadraoId = catalogos.categorias.find((c) => c.codigo === "CAT-OUT")?.id ?? catalogos.categorias[0]?.id ?? 0;
+  const categoriaPadraoId = (catalogos.categorias.find((c: any) => c.codigo === "CAT-OUT") as any)?.id ?? (catalogos.categorias[0] as any)?.id ?? 0;
   const exigirTurma = coordenacaoDoPapel(papel) !== "";
   const catalogoRateio = {
-    categorias: catalogos.categorias.map((c) => ({ id: c.id, nome: c.nome })),
-    setores: catalogos.setores.map((s) => ({ id: s.id, nome: s.nome })),
-    turmas: catalogos.turmas.map((t) => ({ id: t.id, codigo: t.codigo, nome: t.nome, coordenacao: t.coordenacao })),
-    centrosCusto: catalogos.centrosCusto.map((c) => ({ id: c.id, nome: c.nome, tipo: c.tipo })),
-    projetos: catalogos.projetos.map((p) => ({ id: p.id, nome: p.nome })),
+    categorias: catalogos.categorias.map((c: any) => ({ id: c.id, nome: c.nome })),
+    setores: catalogos.setores.map((s: any) => ({ id: s.id, nome: s.nome })),
+    turmas: catalogos.turmas.map((t: any) => ({ id: t.id, codigo: t.codigo, nome: t.nome, coordenacao: t.coordenacao })),
+    centrosCusto: catalogos.centrosCusto.map((c: any) => ({ id: c.id, nome: c.nome, tipo: c.tipo })),
+    projetos: catalogos.projetos.map((p: any) => ({ id: p.id, nome: p.nome })),
   };
 
   const alocacaoEditando = query.alocacao
@@ -164,17 +165,19 @@ export default async function CompraDetalhe({
 
   // A trilha por compra não tem função pronta em lib/auditoria.ts filtrando por
   // entidade composta; a consulta abaixo é feita direto no banco (aceito aqui).
-  const trilha = banco()
-    .prepare(
-      `SELECT id, entidade, entidade_id, acao, usuario_nome, motivo, criado_em, antes, depois
-         FROM trilha_auditoria
-        WHERE (entidade = 'compra' AND entidade_id = ?)
-           OR (entidade IN ('alocacao', 'anexo') AND
-               (COALESCE(json_extract(depois, '$.compra_id'), json_extract(antes, '$.compra_id')) = ?
-                OR (entidade = 'anexo' AND entidade_id IN (SELECT CAST(id AS TEXT) FROM anexos WHERE compra_id = ?))))
-        ORDER BY id DESC LIMIT 80`,
-    )
-    .all(String(compra.id), compra.id, compra.id) as TrilhaLinha[];
+  const trilha = await banco().all<TrilhaLinha>(
+    `SELECT id, entidade, entidade_id, acao, usuario_nome, motivo, criado_em, antes, depois
+       FROM trilha_auditoria
+      WHERE (entidade = 'compra' AND entidade_id = ?)
+         OR (entidade IN ('alocacao', 'anexo') AND
+             (COALESCE(
+                (CASE WHEN depois IS NOT NULL THEN (depois::jsonb ->> 'compra_id') ELSE NULL END),
+                (CASE WHEN antes IS NOT NULL THEN (antes::jsonb ->> 'compra_id') ELSE NULL END)
+              ) = ?
+              OR (entidade = 'anexo' AND entidade_id IN (SELECT CAST(id AS TEXT) FROM anexos WHERE compra_id = ?))))
+      ORDER BY id DESC LIMIT 80`,
+    [String(compra.id), String(compra.id), compra.id],
+  );
 
   const linkVoltar = <Link href="/compras" className="text-xs text-indigo-300 hover:underline">← voltar para compras</Link>;
 
@@ -458,7 +461,7 @@ export default async function CompraDetalhe({
                     name="setor_id"
                     vazio="sem setor"
                     defaultValor={compra.setor_id ? String(compra.setor_id) : ""}
-                    opcoes={catalogos.setores.map((s) => ({ valor: String(s.id), rotulo: s.nome }))}
+                    opcoes={catalogos.setores.map((s: any) => ({ valor: String(s.id), rotulo: String(s.nome) }))}
                   />
                 </div>
                 <Area rotulo="Observação" name="observacao" rows={2} defaultValue={compra.observacao || undefined} />

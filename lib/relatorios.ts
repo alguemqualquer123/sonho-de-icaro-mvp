@@ -42,98 +42,99 @@ function filtroCoordenacao(usuario: Usuario): { sql: string; params: (string | n
   return { sql: " AND co.codigo = ? ", params: [coord] };
 }
 
-export function resumoMensal(usuario: Usuario, competencia: string): ResumoMensal {
+export async function resumoMensal(usuario: Usuario, competencia: string): Promise<ResumoMensal> {
   if (!/^\d{4}-\d{2}$/.test(competencia)) invalido("competência deve estar no formato AAAA-MM");
   const escopo = filtroEscopo(usuario);
   const paramsBase = [competencia, ...escopo.params];
 
-  const totais = banco()
-    .prepare(
-      `SELECT COALESCE(SUM(CASE WHEN c.status <> 'cancelada' THEN c.valor_centavos ELSE 0 END), 0) AS total,
-              COALESCE(SUM(CASE WHEN c.status = 'cancelada' THEN 1 ELSE 0 END), 0) AS canceladas,
-              COUNT(*) AS quantidade
-         FROM compras c WHERE c.competencia = ? ${escopo.sql}`,
-    )
-    .get(...paramsBase) as { total: number; canceladas: number; quantidade: number };
+  const totais = await banco().get(
+    `SELECT COALESCE(SUM(CASE WHEN c.status <> 'cancelada' THEN c.valor_centavos ELSE 0 END), 0)::bigint AS total,
+            COALESCE(SUM(CASE WHEN c.status = 'cancelada' THEN 1 ELSE 0 END), 0)::bigint AS canceladas,
+            COUNT(*)::bigint AS quantidade
+       FROM compras c WHERE c.competencia = ? ${escopo.sql}`,
+    paramsBase,
+  ) as { total: number; canceladas: number; quantidade: number } | undefined;
 
-  const rateio = banco()
-    .prepare(
-      `SELECT COALESCE(SUM(a.valor_centavos), 0) AS rateado
-         FROM alocacoes a JOIN compras c ON c.id = a.compra_id
-        WHERE c.competencia = ? AND c.status <> 'cancelada' ${escopo.sql}`,
-    )
-    .get(...paramsBase) as { rateado: number };
+  const rateio = await banco().get(
+    `SELECT COALESCE(SUM(a.valor_centavos), 0)::bigint AS rateado
+       FROM alocacoes a JOIN compras c ON c.id = a.compra_id
+      WHERE c.competencia = ? AND c.status <> 'cancelada' ${escopo.sql}`,
+    paramsBase,
+  ) as { rateado: number } | undefined;
 
-  const pendencias = banco()
-    .prepare(
-      `SELECT
-         COALESCE(SUM(CASE WHEN r.total_anexos = 0 AND c.status <> 'cancelada' THEN 1 ELSE 0 END), 0) AS sem_comprovante,
-         COALESCE(SUM(CASE WHEN r.saldo_centavos > 0 AND c.status <> 'cancelada' THEN 1 ELSE 0 END), 0) AS sem_classificar,
-         COALESCE(SUM(CASE WHEN c.status <> 'cancelada' THEN r.saldo_centavos ELSE 0 END), 0) AS nao_classificado
-       FROM compras c JOIN vw_resumo_compra r ON r.id = c.id
-       WHERE c.competencia = ? ${escopo.sql}`,
-    )
-    .get(...paramsBase) as { sem_comprovante: number; sem_classificar: number; nao_classificado: number };
+  const pendencias = await banco().get(
+    `SELECT
+       COALESCE(SUM(CASE WHEN r.total_anexos = 0 AND c.status <> 'cancelada' THEN 1 ELSE 0 END), 0)::bigint AS sem_comprovante,
+       COALESCE(SUM(CASE WHEN r.saldo_centavos > 0 AND c.status <> 'cancelada' THEN 1 ELSE 0 END), 0)::bigint AS sem_classificar,
+       COALESCE(SUM(CASE WHEN c.status <> 'cancelada' THEN r.saldo_centavos ELSE 0 END), 0)::bigint AS nao_classificado
+     FROM compras c JOIN vw_resumo_compra r ON r.id = c.id
+     WHERE c.competencia = ? ${escopo.sql}`,
+    paramsBase,
+  ) as { sem_comprovante: number; sem_classificar: number; nao_classificado: number } | undefined;
 
-  const estornos = banco()
-    .prepare(
-      `SELECT COALESCE(SUM(e.valor_centavos), 0) AS v FROM eventos_financeiros e
-        JOIN compras c ON c.id = e.compra_id
-       WHERE c.competencia = ? AND e.tipo IN ('estorno','reembolso') ${escopo.sql}`,
-    )
-    .get(...paramsBase) as { v: number };
+  const estornos = await banco().get(
+    `SELECT COALESCE(SUM(e.valor_centavos), 0)::bigint AS v FROM eventos_financeiros e
+      JOIN compras c ON c.id = e.compra_id
+     WHERE c.competencia = ? AND e.tipo IN ('estorno','reembolso') ${escopo.sql}`,
+    paramsBase,
+  ) as { v: number } | undefined;
 
-  const agrupar = (select: string, join: string, where = "", ordens = 30): Linha[] =>
-    banco()
-      .prepare(
-        `SELECT ${select}, SUM(a.valor_centavos) AS valor_centavos, COUNT(DISTINCT a.compra_id) AS quantidade
-           FROM alocacoes a JOIN compras c ON c.id = a.compra_id ${join}
-          WHERE c.competencia = ? AND c.status <> 'cancelada' ${escopo.sql} ${where}
-          GROUP BY 1 ORDER BY valor_centavos DESC LIMIT ?`,
-      )
-      .all(competencia, ...escopo.params, ordens) as Linha[];
+  const agrupar = async (select: string, join: string, where = "", ordens = 30): Promise<Linha[]> => {
+    const linhas = await banco().all<{ chave: string; nome: string; valor_centavos: number; quantidade: number }>(
+      `SELECT ${select}, SUM(a.valor_centavos)::bigint AS valor_centavos, COUNT(DISTINCT a.compra_id)::bigint AS quantidade
+         FROM alocacoes a JOIN compras c ON c.id = a.compra_id ${join}
+        WHERE c.competencia = ? AND c.status <> 'cancelada' ${escopo.sql} ${where}
+        GROUP BY 1, 2 ORDER BY valor_centavos DESC LIMIT ?`,
+      [competencia, ...escopo.params, ordens],
+    );
+    return linhas.map((l) => ({
+      chave: l.chave,
+      nome: l.nome,
+      valor_centavos: Number(l.valor_centavos),
+      quantidade: Number(l.quantidade),
+    }));
+  };
+
+  const topFornecedores = await banco().all<{ chave: string; nome: string; valor_centavos: number; quantidade: number }>(
+    `SELECT c.fornecedor AS chave, c.fornecedor AS nome, SUM(c.valor_centavos)::bigint AS valor_centavos, COUNT(*)::bigint AS quantidade
+       FROM compras c WHERE c.competencia = ? AND c.status <> 'cancelada' ${escopo.sql}
+      GROUP BY c.fornecedor ORDER BY valor_centavos DESC LIMIT 10`,
+    paramsBase,
+  );
+  const porResponsavel = await banco().all<{ chave: string; nome: string; valor_centavos: number; quantidade: number }>(
+    `SELECT CAST(u.id AS TEXT) AS chave, u.nome AS nome, SUM(c.valor_centavos)::bigint AS valor_centavos, COUNT(*)::bigint AS quantidade
+       FROM compras c JOIN usuarios u ON u.id = c.responsavel_id
+       WHERE c.competencia = ? AND c.status <> 'cancelada' ${escopo.sql}
+      GROUP BY u.id, u.nome ORDER BY valor_centavos DESC LIMIT 10`,
+    paramsBase,
+  );
+  const fechamento = await banco().get("SELECT reaberto_em FROM fechamentos WHERE competencia = ?", [competencia]) as
+    | { reaberto_em: string | null }
+    | undefined;
 
   return {
     competencia,
-    total_centavos: totais.total,
-    quantidade_compras: totais.quantidade,
-    rateado_centavos: rateio.rateado,
-    nao_classificado_centavos: pendencias.nao_classificado,
-    sem_comprovante: pendencias.sem_comprovante,
-    sem_classificar: pendencias.sem_classificar,
-    estornos_centavos: estornos.v,
-    canceladas: totais.canceladas,
-    por_setor: agrupar("s.codigo AS chave, s.nome AS nome", "JOIN setores s ON s.id = a.setor_id"),
-    por_categoria: agrupar("cat.codigo AS chave, cat.nome AS nome", "JOIN categorias cat ON cat.id = a.categoria_id"),
-    por_coordenacao: agrupar(
+    total_centavos: Number(totais?.total ?? 0),
+    quantidade_compras: Number(totais?.quantidade ?? 0),
+    rateado_centavos: Number(rateio?.rateado ?? 0),
+    nao_classificado_centavos: Number(pendencias?.nao_classificado ?? 0),
+    sem_comprovante: Number(pendencias?.sem_comprovante ?? 0),
+    sem_classificar: Number(pendencias?.sem_classificar ?? 0),
+    estornos_centavos: Number(estornos?.v ?? 0),
+    canceladas: Number(totais?.canceladas ?? 0),
+    por_setor: await agrupar("s.codigo AS chave, s.nome AS nome", "JOIN setores s ON s.id = a.setor_id"),
+    por_categoria: await agrupar("cat.codigo AS chave, cat.nome AS nome", "JOIN categorias cat ON cat.id = a.categoria_id"),
+    por_coordenacao: await agrupar(
       "COALESCE(co.codigo, 'SEM COORDENACAO') AS chave, COALESCE(co.nome, 'Sem coordenação') AS nome",
       "LEFT JOIN turmas t ON t.id = a.turma_id LEFT JOIN coordenacoes co ON co.id = t.coordenacao_id",
     ),
-    por_turma: agrupar(
+    por_turma: await agrupar(
       "COALESCE(t.codigo, 'SEM TURMA') AS chave, COALESCE(t.nome, 'Sem turma') AS nome",
       "LEFT JOIN turmas t ON t.id = a.turma_id",
     ),
-    top_fornecedores: banco()
-      .prepare(
-        `SELECT c.fornecedor AS chave, c.fornecedor AS nome, SUM(c.valor_centavos) AS valor_centavos, COUNT(*) AS quantidade
-           FROM compras c WHERE c.competencia = ? AND c.status <> 'cancelada' ${escopo.sql}
-          GROUP BY c.fornecedor ORDER BY valor_centavos DESC LIMIT 10`,
-      )
-      .all(...paramsBase) as Linha[],
-    por_responsavel: banco()
-      .prepare(
-        `SELECT CAST(u.id AS TEXT) AS chave, u.nome AS nome, SUM(c.valor_centavos) AS valor_centavos, COUNT(*) AS quantidade
-           FROM compras c JOIN usuarios u ON u.id = c.responsavel_id
-          WHERE c.competencia = ? AND c.status <> 'cancelada' ${escopo.sql}
-          GROUP BY u.id ORDER BY valor_centavos DESC LIMIT 10`,
-      )
-      .all(...paramsBase) as Linha[],
-    fechado: (() => {
-      const f = banco().prepare("SELECT reaberto_em FROM fechamentos WHERE competencia = ?").get(competencia) as
-        | { reaberto_em: string | null }
-        | undefined;
-      return Boolean(f && !f.reaberto_em);
-    })(),
+    top_fornecedores: topFornecedores.map((l) => ({ ...l, valor_centavos: Number(l.valor_centavos), quantidade: Number(l.quantidade) })),
+    por_responsavel: porResponsavel.map((l) => ({ ...l, valor_centavos: Number(l.valor_centavos), quantidade: Number(l.quantidade) })),
+    fechado: Boolean(fechamento && !fechamento.reaberto_em),
   };
 }
 
@@ -153,29 +154,28 @@ export type TipoRelatorio = (typeof TIPOS_RELATORIO)[number]["tipo"];
 
 export type Tabela = { colunas: string[]; linhas: (string | number)[][]; total_centavos: number };
 
-export function gerarRelatorio(
+export async function gerarRelatorio(
   tipo: TipoRelatorio,
   usuario: Usuario,
   competencia = "",
-): Tabela {
+): Promise<Tabela> {
   if (!TIPOS_RELATORIO.some((t) => t.tipo === tipo)) invalido(`relatório desconhecido: ${tipo}`);
   const escopo = filtroEscopo(usuario);
   const whereComp = competencia ? " AND c.competencia = ?" : "";
   const params = competencia ? [competencia, ...escopo.params] : [...escopo.params];
 
-  const porAlocacao = (select: string, join: string): Tabela => {
-    const linhas = banco()
-      .prepare(
-        `SELECT ${select}, SUM(a.valor_centavos) AS v, COUNT(DISTINCT a.compra_id) AS q
-           FROM alocacoes a JOIN compras c ON c.id = a.compra_id ${join}
-          WHERE 1=1 ${whereComp} AND c.status <> 'cancelada' ${escopo.sql}
-          GROUP BY 1 ORDER BY v DESC`,
-      )
-      .all(...params) as { chave: string; nome: string; v: number; q: number }[];
+  const porAlocacao = async (select: string, join: string): Promise<Tabela> => {
+    const linhas = await banco().all<{ chave: string; nome: string; v: number; q: number }>(
+      `SELECT ${select}, SUM(a.valor_centavos)::bigint AS v, COUNT(DISTINCT a.compra_id)::bigint AS q
+         FROM alocacoes a JOIN compras c ON c.id = a.compra_id ${join}
+        WHERE 1=1 ${whereComp} AND c.status <> 'cancelada' ${escopo.sql}
+        GROUP BY 1, 2 ORDER BY v DESC`,
+      params,
+    );
     return {
       colunas: ["Código", "Nome", "Valor", "Compras"],
-      linhas: linhas.map((l) => [l.chave, l.nome, formatarCentavos(l.v), l.q]),
-      total_centavos: linhas.reduce((acc, l) => acc + l.v, 0),
+      linhas: linhas.map((l) => [l.chave, l.nome, formatarCentavos(Number(l.v)), Number(l.q)]),
+      total_centavos: linhas.reduce((acc, l) => acc + Number(l.v), 0),
     };
   };
 
@@ -191,76 +191,64 @@ export function gerarRelatorio(
       );
     case "por-coordenacao": {
       const coord = filtroCoordenacao(usuario);
-      const linhas = banco()
-        .prepare(
-          `SELECT COALESCE(co.codigo,'-') AS chave, COALESCE(co.nome,'Sem coordenação') AS nome,
-                  SUM(a.valor_centavos) AS v, COUNT(DISTINCT a.compra_id) AS q
-             FROM alocacoes a JOIN compras c ON c.id = a.compra_id
-             LEFT JOIN turmas t ON t.id = a.turma_id LEFT JOIN coordenacoes co ON co.id = t.coordenacao_id
-            WHERE 1=1 ${whereComp} AND c.status <> 'cancelada' ${escopo.sql} ${coord.sql}
-            GROUP BY 1 ORDER BY v DESC`,
-        )
-        .all(...params, ...coord.params) as { chave: string; nome: string; v: number; q: number }[];
+      const linhas = await banco().all<{ chave: string; nome: string; v: number; q: number }>(
+        `SELECT COALESCE(co.codigo,'-') AS chave, COALESCE(co.nome,'Sem coordenação') AS nome,
+                SUM(a.valor_centavos)::bigint AS v, COUNT(DISTINCT a.compra_id)::bigint AS q
+           FROM alocacoes a JOIN compras c ON c.id = a.compra_id
+           LEFT JOIN turmas t ON t.id = a.turma_id LEFT JOIN coordenacoes co ON co.id = t.coordenacao_id
+           WHERE 1=1 ${whereComp} AND c.status <> 'cancelada' ${escopo.sql} ${coord.sql}
+          GROUP BY 1, 2 ORDER BY v DESC`,
+        [...params, ...coord.params],
+      );
       return {
         colunas: ["Coordenação", "Nome", "Valor", "Compras"],
-        linhas: linhas.map((l) => [l.chave, l.nome, formatarCentavos(l.v), l.q]),
-        total_centavos: linhas.reduce((acc, l) => acc + l.v, 0),
+        linhas: linhas.map((l) => [l.chave, l.nome, formatarCentavos(Number(l.v)), Number(l.q)]),
+        total_centavos: linhas.reduce((acc, l) => acc + Number(l.v), 0),
       };
     }
     case "por-fornecedor": {
-      const linhas = banco()
-        .prepare(
-          `SELECT c.fornecedor AS nome, SUM(c.valor_centavos) AS v, COUNT(*) AS q
-             FROM compras c WHERE 1=1 ${whereComp} AND c.status <> 'cancelada' ${escopo.sql}
-            GROUP BY c.fornecedor ORDER BY v DESC`,
-        )
-        .all(...params) as { nome: string; v: number; q: number }[];
+      const linhas = await banco().all<{ nome: string; v: number; q: number }>(
+        `SELECT c.fornecedor AS nome, SUM(c.valor_centavos)::bigint AS v, COUNT(*)::bigint AS q
+           FROM compras c WHERE 1=1 ${whereComp} AND c.status <> 'cancelada' ${escopo.sql}
+          GROUP BY c.fornecedor ORDER BY v DESC`,
+        params,
+      );
       return {
         colunas: ["Fornecedor", "Valor", "Compras"],
-        linhas: linhas.map((l) => [l.nome, formatarCentavos(l.v), l.q]),
-        total_centavos: linhas.reduce((acc, l) => acc + l.v, 0),
+        linhas: linhas.map((l) => [l.nome, formatarCentavos(Number(l.v)), Number(l.q)]),
+        total_centavos: linhas.reduce((acc, l) => acc + Number(l.v), 0),
       };
     }
     case "por-responsavel": {
-      const linhas = banco()
-        .prepare(
-          `SELECT u.nome AS nome, SUM(c.valor_centavos) AS v, COUNT(*) AS q
-             FROM compras c JOIN usuarios u ON u.id = c.responsavel_id
-            WHERE 1=1 ${whereComp} AND c.status <> 'cancelada' ${escopo.sql}
-            GROUP BY u.nome ORDER BY v DESC`,
-        )
-        .all(...params) as { nome: string; v: number; q: number }[];
+      const linhas = await banco().all<{ nome: string; v: number; q: number }>(
+        `SELECT u.nome AS nome, SUM(c.valor_centavos)::bigint AS v, COUNT(*)::bigint AS q
+           FROM compras c JOIN usuarios u ON u.id = c.responsavel_id
+          WHERE 1=1 ${whereComp} AND c.status <> 'cancelada' ${escopo.sql}
+          GROUP BY u.nome ORDER BY v DESC`,
+        params,
+      );
       return {
         colunas: ["Responsável", "Valor", "Compras"],
-        linhas: linhas.map((l) => [l.nome, formatarCentavos(l.v), l.q]),
-        total_centavos: linhas.reduce((acc, l) => acc + l.v, 0),
+        linhas: linhas.map((l) => [l.nome, formatarCentavos(Number(l.v)), Number(l.q)]),
+        total_centavos: linhas.reduce((acc, l) => acc + Number(l.v), 0),
       };
     }
     case "mensal": {
-      const linhas = banco()
-        .prepare(
-          `SELECT c.competencia AS comp,
-                  SUM(CASE WHEN c.status <> 'cancelada' THEN c.valor_centavos ELSE 0 END) AS total,
-                  COUNT(*) AS q
-             FROM compras c WHERE 1=1 ${escopo.sql} GROUP BY c.competencia ORDER BY c.competencia`,
-        )
-        .all(...escopo.params) as { comp: string; total: number; q: number }[];
+      const linhas = await banco().all<{ comp: string; total: number; q: number }>(
+        `SELECT c.competencia AS comp,
+                SUM(CASE WHEN c.status <> 'cancelada' THEN c.valor_centavos ELSE 0 END)::bigint AS total,
+                COUNT(*)::bigint AS q
+           FROM compras c WHERE 1=1 ${escopo.sql} GROUP BY c.competencia ORDER BY c.competencia`,
+        escopo.params,
+      );
       return {
         colunas: ["Competência", "Total (compras)", "Compras"],
-        linhas: linhas.map((l) => [l.comp, formatarCentavos(l.total), l.q]),
-        total_centavos: linhas.reduce((acc, l) => acc + l.total, 0),
+        linhas: linhas.map((l) => [l.comp, formatarCentavos(Number(l.total)), Number(l.q)]),
+        total_centavos: linhas.reduce((acc, l) => acc + Number(l.total), 0),
       };
     }
     case "pendencias": {
-      const linhas = banco()
-        .prepare(
-          `SELECT c.numero, c.data, c.fornecedor, c.valor_centavos, r.saldo_centavos, r.total_anexos, u.nome
-             FROM compras c JOIN vw_resumo_compra r ON r.id = c.id JOIN usuarios u ON u.id = c.responsavel_id
-            WHERE (r.saldo_centavos > 0 OR r.total_anexos = 0) AND c.status <> 'cancelada'
-              ${whereComp.replace("c.competencia", "c.competencia")} ${escopo.sql}
-            ORDER BY c.data DESC LIMIT 500`,
-        )
-        .all(...params) as {
+      const linhas = await banco().all<{
         numero: string;
         data: string;
         fornecedor: string;
@@ -268,7 +256,14 @@ export function gerarRelatorio(
         saldo_centavos: number;
         total_anexos: number;
         nome: string;
-      }[];
+      }>(
+        `SELECT c.numero, c.data, c.fornecedor, c.valor_centavos, r.saldo_centavos, r.total_anexos, u.nome
+           FROM compras c JOIN vw_resumo_compra r ON r.id = c.id JOIN usuarios u ON u.id = c.responsavel_id
+          WHERE (r.saldo_centavos > 0 OR r.total_anexos = 0) AND c.status <> 'cancelada'
+            ${whereComp} ${escopo.sql}
+          ORDER BY c.data DESC LIMIT 500`,
+        params,
+      );
       return {
         colunas: ["Número", "Data", "Fornecedor", "Total", "Não classificado", "Comprovantes", "Responsável"],
         linhas: linhas.map((l) => [
@@ -276,31 +271,30 @@ export function gerarRelatorio(
           l.data,
           l.fornecedor,
           formatarCentavos(l.valor_centavos),
-          formatarCentavos(l.saldo_centavos),
-          l.total_anexos,
+          formatarCentavos(Number(l.saldo_centavos)),
+          Number(l.total_anexos),
           l.nome,
         ]),
-        total_centavos: linhas.reduce((acc, l) => acc + l.saldo_centavos, 0),
+        total_centavos: linhas.reduce((acc, l) => acc + Number(l.saldo_centavos), 0),
       };
     }
     case "conciliacao": {
       const whereCompF = competencia ? " AND f.competencia = ?" : "";
-      const linhas = banco()
-        .prepare(
-          `SELECT i.data, i.fornecedor, i.descricao, i.valor_centavos, i.pareamento, c.numero
-             FROM itens_fatura i JOIN faturas f ON f.id = i.fatura_id
-             LEFT JOIN compras c ON c.id = i.compra_id
-            WHERE (i.compra_id IS NULL OR i.pareamento = 'manual') ${whereCompF}
-            ORDER BY i.data DESC LIMIT 500`,
-        )
-        .all(competencia ? [competencia] : []) as {
+      const linhas = await banco().all<{
         data: string;
         fornecedor: string;
         descricao: string;
         valor_centavos: number;
         pareamento: string;
         numero: string | null;
-      }[];
+      }>(
+        `SELECT i.data, i.fornecedor, i.descricao, i.valor_centavos, i.pareamento, c.numero
+           FROM itens_fatura i JOIN faturas f ON f.id = i.fatura_id
+           LEFT JOIN compras c ON c.id = i.compra_id
+          WHERE (i.compra_id IS NULL OR i.pareamento = 'manual') ${whereCompF}
+          ORDER BY i.data DESC LIMIT 500`,
+        competencia ? [competencia] : [],
+      );
       return {
         colunas: ["Data", "Fornecedor", "Descrição", "Valor", "Situação", "Compra"],
         linhas: linhas.map((l) => [
@@ -311,7 +305,7 @@ export function gerarRelatorio(
           l.pareamento === "manual" ? "par manual" : "ausente no sistema",
           l.numero ?? "-",
         ]),
-        total_centavos: linhas.reduce((acc, l) => acc + l.valor_centavos, 0),
+        total_centavos: linhas.reduce((acc, l) => acc + Number(l.valor_centavos), 0),
       };
     }
   }

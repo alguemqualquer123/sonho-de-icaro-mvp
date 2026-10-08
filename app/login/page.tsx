@@ -12,7 +12,7 @@ export default async function PaginaLogin({
   searchParams: Promise<{ erro?: string; ok?: string; retorno?: string }>;
 }) {
   const params = await searchParams;
-  const primeiro = totalUsuarios() === 0;
+  const primeiro = (await totalUsuarios()) === 0;
   const retorno = params.retorno && params.retorno.startsWith("/") ? params.retorno : "/dashboard";
 
   return (

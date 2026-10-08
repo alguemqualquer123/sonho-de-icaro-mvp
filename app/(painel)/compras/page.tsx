@@ -10,11 +10,11 @@ import {
   Numero,
   Painel,
   Recado,
-  Selecao,
   Selo,
   Tabela,
   Valor,
 } from "@/components/ui";
+import { Selecao } from "@/components/selecao";
 import { exigirUsuario } from "@/lib/auth";
 import { listarCompras } from "@/lib/compras";
 import { opcoesCatalogos } from "@/lib/cadastros";
@@ -38,9 +38,9 @@ export default async function ComprasPage({
   const status = params.status && STATUS_OPCOES.includes(params.status) ? params.status : "";
   const busca = (params.q ?? "").trim();
   const setorId = Number(params.setor ?? "") > 0 ? Number(params.setor) : 0;
-  const catalogos = opcoesCatalogos();
+  const catalogos = await opcoesCatalogos();
 
-  const compras = listarCompras(usuario, {
+  const compras = await listarCompras(usuario, {
     competencia,
     status: status || undefined,
     busca: busca || undefined,
@@ -141,7 +141,7 @@ export default async function ComprasPage({
             name="setor"
             defaultValor={setorId ? String(setorId) : ""}
             vazio="todos os setores"
-            opcoes={catalogos.setores.map((s) => ({ valor: String(s.id), rotulo: s.nome }))}
+            opcoes={catalogos.setores.map((s: any) => ({ valor: String(s.id), rotulo: s.nome }))}
           />
           <label className="block">
             <span className="mb-1.5 block text-xs font-medium text-white/60">Busca</span>
