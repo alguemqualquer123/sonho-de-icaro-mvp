@@ -658,7 +658,16 @@ export async function salvarAnexo(
   }
   if (destino === "local") {
     caminho = `anexo-${crypto.randomBytes(12).toString("hex")}.${ext}`;
-    fs.writeFileSync(path.join(UPLOADS_DIR, caminho), buffer);
+    try {
+      fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+    } catch {
+      // disco read-only (Vercel sem /tmp): o write abaixo vai falhar com msg clara
+    }
+    try {
+      fs.writeFileSync(path.join(UPLOADS_DIR, caminho), buffer);
+    } catch {
+      invalido("não foi possível salvar o comprovante em disco (ambiente efêmero); configure FIVEMANAGE_API_KEY para fotos ou tente de novo");
+    }
   }
   return banco().transaction(async () => {
     const r = await banco().run(

@@ -15,7 +15,9 @@ const contexto = new AsyncLocalStorage<import("pg").PoolClient>();
 
 export const DATA_DIR = process.env.DATA_DIR
   ? path.resolve(process.env.DATA_DIR)
-  : path.join(process.cwd(), "data");
+  : process.env.VERCEL
+    ? path.join("/tmp", "sonho-data")
+    : path.join(process.cwd(), "data");
 // Comprovantes: fotos vão para o CDN do FiveManage (ver lib/fivemanage.ts);
 // PDF e o fallback sem chave ficam no filesystem local. Na Vercel o disco é
 // efêmero: o upload funciona durante a instância, mas o recomendado é manter
@@ -78,7 +80,7 @@ function obterPool(): Pool {
   if (!pool) {
     if (!URL_BD) {
       throw new Error(
-        "não há conexão com o banco: defina DATABASE_URL (ou POSTGRES_URL_NON_POOLING / POSTGRES_URL / SUPABASE_DB_URL) no .env.local — copie .env.example para .env.local e reinicie o `next dev`",
+        "não há conexão com o banco: defina DATABASE_URL nas Environment Variables da Vercel (ou POSTGRES_URL_NON_POOLING / POSTGRES_URL / SUPABASE_DB_URL); em local, copie .env.example para .env.local e reinicie o `next dev`",
       );
     }
     const precisaSSL =
@@ -409,7 +411,13 @@ async function semear() {
 let inicializacao: Promise<void> | undefined;
 
 async function inicializar(): Promise<void> {
-  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+  // Na Vercel o disco é efêmero e só /tmp é gravável; em local sem permissão
+  // o mkdir também pode falhar — nenhum dos dois pode derrubar o boot.
+  try {
+    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+  } catch {
+    // segue sem pasta local: fotos usam FiveManage e PDF falha com msg amigável
+  }
   await obterPool().query(ESQUEMA);
   await migrarAnexosRemotos();
   await semear();
